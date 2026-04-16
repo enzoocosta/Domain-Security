@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title or "Domain Security Checker" }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+  </head>
+  <body>
+    <main class="container">
+      <header class="hero">
+        <p class="eyebrow">Domain Security Checker</p>
+        <h1>Diagnostico para seguranca de dominio e autenticacao de e-mail</h1>
+        <p class="subtitle">
+          Analise pratica de DNS, SPF, DKIM, SSL e DMARC .
+        </p>
+      </header>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

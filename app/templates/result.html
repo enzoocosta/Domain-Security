@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <div class="result-card">
+      <div class="score-hero">
+        <div>
+          <h2>Resultado da analise</h2>
+          <p><strong>Entrada:</strong> {{ result.normalized.original }}</p>
+          <p><strong>Dominio analisavel:</strong> {{ result.normalized.analysis_domain }}</p>
+          <p>{{ result.summary }}</p>
+        </div>
+        <div class="score-box">
+          <p class="score-value">{{ result.score }}</p>
+          <p class="score-label">de 100</p>
+          <p>
+            <span class="severity-badge severity-{{ result.severity }}">{{ result.severity }}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Detalhamento do score</h3>
+      <div class="summary-grid">
+        <div class="metric"><span>DNS</span><strong>{{ result.score_breakdown.dns_score }}</strong></div>
+        <div class="metric"><span>MX</span><strong>{{ result.score_breakdown.mx_score }}</strong></div>
+        <div class="metric"><span>SPF</span><strong>{{ result.score_breakdown.spf_score }}</strong></div>
+        <div class="metric"><span>DKIM</span><strong>{{ result.score_breakdown.dkim_score }}</strong></div>
+        <div class="metric"><span>DMARC</span><strong>{{ result.score_breakdown.dmarc_score }}</strong></div>
+        <div class="metric"><span>Consistencia</span><strong>{{ result.score_breakdown.consistency_score }}</strong></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>TLS do website</h3>
+      <p><span class="status-badge status-{{ 'presente' if result.website_tls.ssl_active else 'ausente' }}">{{ "presente" if result.website_tls.ssl_active else "ausente" }}</span></p>
+      <p>{{ result.website_tls.message }}</p>
+      <div class="details-grid">
+        <div><span class="detail-label">Certificado valido</span><strong>{{ "sim" if result.website_tls.certificate_valid else "nao" if result.website_tls.certificate_valid is not none else "-" }}</strong></div>
+        <div><span class="detail-label">Versao TLS</span><strong>{{ result.website_tls.tls_version or "-" }}</strong></div>
+        <div><span class="detail-label">Provedor sugerido</span><strong>{{ result.website_tls.provider_guess or "-" }}</strong></div>
+        <div><span class="detail-label">Confianca</span><strong>{{ result.website_tls.confidence }}</strong></div>
+        <div class="expiry-card expiry-{{ result.website_tls.expiry_status }}"><span class="detail-label">Validade</span><strong>{{ result.website_tls.expiry_status }}</strong></div>
+        <div><span class="detail-label">Dias para expirar</span><strong>{{ result.website_tls.days_to_expire if result.website_tls.days_to_expire is not none else "-" }}</strong></div>
+      </div>
+      <div class="details-grid">
+        <div><span class="detail-label">Issuer</span><strong>{{ result.website_tls.issuer or "-" }}</strong></div>
+        <div><span class="detail-label">Subject</span><strong>{{ result.website_tls.subject or "-" }}</strong></div>
+        <div><span class="detail-label">Not before</span><strong>{{ result.website_tls.not_before or "-" }}</strong></div>
+        <div><span class="detail-label">Not after</span><strong>{{ result.website_tls.not_after or "-" }}</strong></div>
+      </div>
+      {% if result.website_tls.san %}
+        <p class="section-label">SAN</p>
+        <ul>
+          {% for item in result.website_tls.san %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if result.website_tls.error %}
+        <p class="muted">Erro tecnico: {{ result.website_tls.error }}</p>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>Seguranca de transporte de e-mail</h3>
+      {% if result.email_tls.has_email_tls_data %}
+        <p>{{ result.email_tls.message }}</p>
+        <p class="muted">{{ result.email_tls.note }}</p>
+        <div class="stack-list">
+          {% for mx in result.email_tls.mx_results if mx.has_tls_data %}
+            <article class="stack-item">
+              <p><strong>{{ mx.host }}</strong> <span class="muted">porta {{ mx.port }}</span></p>
+              <div class="details-grid">
+                {% if mx.starttls_supported is not none %}
+                  <div><span class="detail-label">STARTTLS</span><strong>{{ "sim" if mx.starttls_supported else "nao" }}</strong></div>
+                {% endif %}
+                {% if mx.certificate_valid is not none %}
+                  <div><span class="detail-label">Certificado valido</span><strong>{{ "sim" if mx.certificate_valid else "nao" }}</strong></div>
+                {% endif %}
+                {% if mx.hostname_match is not none %}
+                  <div><span class="detail-label">Hostname confere</span><strong>{{ "sim" if mx.hostname_match else "nao" }}</strong></div>
+                {% endif %}
+                {% if mx.tls_version %}
+                  <div><span class="detail-label">Versao TLS</span><strong>{{ mx.tls_version }}</strong></div>
+                {% endif %}
+                {% if mx.expiry_status != "desconhecido" %}
+                  <div class="expiry-card expiry-{{ mx.expiry_status }}"><span class="detail-label">Validade</span><strong>{{ mx.expiry_status }}</strong></div>
+                {% endif %}
+                {% if mx.days_to_expire is not none %}
+                  <div><span class="detail-label">Dias para expirar</span><strong>{{ mx.days_to_expire }}</strong></div>
+                {% endif %}
+              </div>
+              <div class="details-grid">
+                {% if mx.issuer %}
+                  <div><span class="detail-label">Issuer</span><strong>{{ mx.issuer }}</strong></div>
+                {% endif %}
+                {% if mx.subject %}
+                  <div><span class="detail-label">Subject</span><strong>{{ mx.subject }}</strong></div>
+                {% endif %}
+                {% if mx.not_before %}
+                  <div><span class="detail-label">Not before</span><strong>{{ mx.not_before }}</strong></div>
+                {% endif %}
+                {% if mx.not_after %}
+                  <div><span class="detail-label">Not after</span><strong>{{ mx.not_after }}</strong></div>
+                {% endif %}
+              </div>
+              {% if mx.error %}
+                <p class="muted">Erro tecnico: {{ mx.error }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Nao foi possivel obter informacoes de TLS/SSL dos registros MX do dominio {{ result.normalized.analysis_domain }}.</p>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>Registro do dominio</h3>
+      <p><span class="status-badge status-{{ 'presente' if result.domain_registration.rdap_available else 'ausente' }}">{{ "presente" if result.domain_registration.rdap_available else "ausente" }}</span></p>
+      <p>{{ result.domain_registration.message }}</p>
+      <div class="details-grid">
+        <div><span class="detail-label">Fonte</span><strong>{{ result.domain_registration.source or "-" }}</strong></div>
+        <div><span class="detail-label">Registrar</span><strong>{{ result.domain_registration.registrar or "-" }}</strong></div>
+        <div><span class="detail-label">Criado em</span><strong>{{ result.domain_registration.created_at or "-" }}</strong></div>
+        <div><span class="detail-label">Expira em</span><strong>{{ result.domain_registration.expires_at or "-" }}</strong></div>
+        <div class="expiry-card expiry-{{ result.domain_registration.expiry_status }}"><span class="detail-label">Status de expiracao</span><strong>{{ result.domain_registration.expiry_status }}</strong></div>
+        <div><span class="detail-label">Dias para expirar</span><strong>{{ result.domain_registration.days_to_expire if result.domain_registration.days_to_expire is not none else "-" }}</strong></div>
+      </div>
+      {% if result.domain_registration.status %}
+        <p class="section-label">Status do registro</p>
+        <ul>
+          {% for item in result.domain_registration.status %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if result.domain_registration.error %}
+        <p class="muted">Erro tecnico: {{ result.domain_registration.error }}</p>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>MX</h3>
+      <p><span class="status-badge status-{{ result.checks.mx.status }}">{{ result.checks.mx.status }}</span></p>
+      <p>{{ result.checks.mx.message }}</p>
+      {% if result.checks.mx.records %}
+        <ul>
+          {% for record in result.checks.mx.records %}
+            <li>{{ record.preference }} {{ record.exchange }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>SPF</h3>
+      <p><span class="status-badge status-{{ result.checks.spf.status }}">{{ result.checks.spf.status }}</span></p>
+      <p>{{ result.checks.spf.message }}</p>
+      <div class="details-grid">
+        <div><span class="detail-label">Mecanismo all final</span><strong>{{ result.checks.spf.final_all or "nao identificado" }}</strong></div>
+        <div><span class="detail-label">Postura</span><strong>{{ result.checks.spf.posture }}</strong></div>
+        <div><span class="detail-label">Consultas SPF</span><strong>{{ result.checks.spf.lookup_count_status }}</strong></div>
+      </div>
+      {% if result.checks.spf.records %}
+        <ul>
+          {% for record in result.checks.spf.records %}
+            <li>{{ record }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if result.checks.spf.risks %}
+        <p class="section-label">Riscos observados</p>
+        <ul>
+          {% for item in result.checks.spf.risks %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>DKIM</h3>
+      <p><span class="status-badge status-dkim">{{ result.checks.dkim.status }}</span></p>
+      <p>{{ result.checks.dkim.message }}</p>
+      <p>{{ result.checks.dkim.confidence_note }}</p>
+      {% if result.checks.dkim.selectors_with_records %}
+        <p class="section-label">Seletores com registros</p>
+        <ul>
+          {% for selector in result.checks.dkim.selectors_with_records %}
+            <li>{{ selector }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>DMARC</h3>
+      <p><span class="status-badge status-{{ result.checks.dmarc.status }}">{{ result.checks.dmarc.status }}</span></p>
+      <p>{{ result.checks.dmarc.message }}</p>
+      <div class="details-grid">
+        <div><span class="detail-label">Politica</span><strong>{{ result.checks.dmarc.policy or "ausente" }}</strong></div>
+        <div><span class="detail-label">Forca</span><strong>{{ result.checks.dmarc.policy_strength }}</strong></div>
+        <div><span class="detail-label">pct</span><strong>{{ result.checks.dmarc.pct if result.checks.dmarc.pct is not none else "-" }}</strong></div>
+        <div><span class="detail-label">adkim</span><strong>{{ result.checks.dmarc.adkim or "-" }}</strong></div>
+        <div><span class="detail-label">aspf</span><strong>{{ result.checks.dmarc.aspf or "-" }}</strong></div>
+      </div>
+      {% if result.checks.dmarc.records %}
+        <ul>
+          {% for record in result.checks.dmarc.records %}
+            <li>{{ record }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if result.checks.dmarc.rua or result.checks.dmarc.ruf %}
+        <p class="section-label">Relatorios</p>
+        <ul>
+          {% for item in result.checks.dmarc.rua %}
+            <li>rua: {{ item }}</li>
+          {% endfor %}
+          {% for item in result.checks.dmarc.ruf %}
+            <li>ruf: {{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if result.checks.dmarc.risks %}
+        <p class="section-label">Riscos observados</p>
+        <ul>
+          {% for item in result.checks.dmarc.risks %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>Achados</h3>
+      <div class="stack-list">
+        {% for item in result.findings %}
+          <article class="stack-item">
+            <p>
+              <span class="finding-badge finding-{{ item.severity }}">{{ item.severity }}</span>
+              <strong>{{ item.title }}</strong>
+            </p>
+            <p>{{ item.detail }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Recomendacoes</h3>
+      <div class="stack-list">
+        {% for item in result.recommendations %}
+          <article class="stack-item">
+            <p>
+              <span class="priority-badge priority-{{ item.priority }}">{{ item.priority }}</span>
+              <strong>{{ item.title }}</strong>
+            </p>
+            <p>{{ item.action }}</p>
+            <p class="muted">{{ item.rationale }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Notas importantes</h3>
+      <ul>
+        {% for item in result.notes %}
+          <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <p><a href="/">Nova analise</a></p>
+  </section>
+{% endblock %}
