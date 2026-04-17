@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <div class="info-box">
+      <h2>Historico de analises</h2>
+      <p><strong>Dominio:</strong> {{ history.domain }}</p>
+      {% if history.items %}
+        <div class="stack-list">
+          {% for item in history.items %}
+            <article class="stack-item">
+              <p><strong>{{ item.created_at }}</strong></p>
+              <div class="details-grid">
+                <div><span class="detail-label">Score</span><strong>{{ item.score }}</strong></div>
+                <div><span class="detail-label">Severity</span><strong>{{ item.severity }}</strong></div>
+                <div><span class="detail-label">Entrada</span><strong>{{ item.input_target }}</strong></div>
+              </div>
+              <p>{{ item.summary }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Nenhuma analise salva foi encontrada para este dominio.</p>
+      {% endif %}
+    </div>
+
+    <p><a href="/">Nova analise</a></p>
+  </section>
+{% endblock %}

@@ -1,12 +1,16 @@
 from datetime import UTC, datetime, timedelta
+import inspect
 
 from app.api.routes import analysis as analysis_route
+from app.api.routes import history as history_route
 from app.api.routes import web as web_route
 from app.core.exceptions import DNSDomainNotFoundError
 from app.schemas.analysis import DomainRegistrationResult, EmailTLSMXResult, EmailTLSResult, WebsiteTLSResult
+from app.schemas.history import DomainHistoryResponse, HistoryItem
 from app.services.analysis_service import DomainAnalysisService
 from app.services.dns_service import MXRecordValue
 from tests.fakes import (
+    StubAnalysisHistoryService,
     StubDNSService,
     StubDomainRegistrationService,
     StubEmailTLSService,
@@ -79,15 +83,20 @@ def _install_stub_service(
     dns_service: StubDNSService,
     *,
     email_tls_result: EmailTLSResult | None = None,
+    history_response: DomainHistoryResponse | None = None,
 ) -> None:
+    history_service = StubAnalysisHistoryService(history_response=history_response)
     service = DomainAnalysisService(
         dns_service=dns_service,
         website_tls_service=StubWebsiteTLSService(_website_tls_result()),
         email_tls_service=StubEmailTLSService(email_tls_result or _email_tls_result()),
         domain_registration_service=StubDomainRegistrationService(_registration_result()),
+        history_service=history_service,
     )
     monkeypatch.setattr(analysis_route, "service", service)
     monkeypatch.setattr(web_route, "service", service)
+    monkeypatch.setattr(web_route, "history_service", history_service)
+    monkeypatch.setattr(history_route, "service", history_service)
 
 
 def test_healthcheck(client):
@@ -131,6 +140,9 @@ def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, mon
     assert payload["email_tls"]["has_email_tls_data"] is True
     assert payload["email_tls"]["mx_results"][0]["starttls_supported"] is True
     assert payload["domain_registration"]["rdap_available"] is True
+    assert payload["changes"]["has_previous_snapshot"] is False
+    assert payload["performance"]["cache_hit"] is False
+    assert payload["performance"]["total_ms"] >= 0
     assert payload["score"] >= 80
     assert payload["severity"] in {"bom", "excelente"}
     assert any(item["category"] == "tls_site" for item in payload["findings"])
@@ -170,6 +182,7 @@ def test_form_submission_renders_new_sections(client, monkeypatch):
     assert "Seguranca de transporte de e-mail" in response.text
     assert "Registro do dominio" in response.text
     assert "Detalhamento do score" in response.text
+    assert "Mudancas desde a ultima analise" in response.text
     assert "Recomendacoes" in response.text
 
 
@@ -208,3 +221,111 @@ def test_form_submission_hides_empty_email_tls_details(client, monkeypatch):
     assert "O certificado de e-mail pertence ao servidor MX" not in response.text
     assert "porta 25" not in response.text
     assert "Timeout ao testar STARTTLS" not in response.text
+
+
+def test_history_endpoint_returns_items(client, monkeypatch):
+    history_response = DomainHistoryResponse(
+        domain="example.com",
+        items=[
+            HistoryItem(
+                id=1,
+                created_at=datetime.now(tz=UTC),
+                input_target="example.com",
+                analysis_domain="example.com",
+                score=82,
+                severity="bom",
+                summary="Resumo da analise salva.",
+            )
+        ],
+    )
+    _install_stub_service(
+        monkeypatch,
+        StubDNSService(),
+        history_response=history_response,
+    )
+
+    response = client.get("/api/v1/history/example.com")
+
+    assert response.status_code == 200
+    assert response.json()["domain"] == "example.com"
+    assert len(response.json()["items"]) == 1
+
+
+def test_history_page_renders_items(client, monkeypatch):
+    history_response = DomainHistoryResponse(
+        domain="example.com",
+        items=[
+            HistoryItem(
+                id=1,
+                created_at=datetime.now(tz=UTC),
+                input_target="example.com",
+                analysis_domain="example.com",
+                score=82,
+                severity="bom",
+                summary="Resumo da analise salva.",
+            )
+        ],
+    )
+    _install_stub_service(
+        monkeypatch,
+        StubDNSService(),
+        history_response=history_response,
+    )
+
+    response = client.get("/history/example.com")
+
+    assert response.status_code == 200
+    assert "Historico de analises" in response.text
+    assert "Resumo da analise salva." in response.text
+
+
+def test_monitoring_route_requires_authentication(client):
+    response = client.get("/monitoring", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"].startswith("/auth/login")
+
+
+def test_register_login_and_create_monitored_domain(client):
+    register_response = client.post(
+        "/auth/register",
+        data={"email": "owner@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    assert register_response.status_code == 200
+    assert "Monitoramento autenticado" in register_response.text
+
+    dashboard_response = client.post(
+        "/monitoring/domains",
+        data={
+            "domain": "Example.com",
+            "monitoring_frequency": "daily",
+            "input_label": "Dominio principal",
+        },
+        follow_redirects=True,
+    )
+
+    assert dashboard_response.status_code == 200
+    assert "example.com" in dashboard_response.text
+    assert "Dominio principal" in dashboard_response.text
+    assert "daily" in dashboard_response.text
+
+    logout_response = client.post("/auth/logout", follow_redirects=True)
+    assert logout_response.status_code == 200
+    assert "Diagnostico para seguranca de dominio" in logout_response.text
+
+    login_response = client.post(
+        "/auth/login",
+        data={"email": "owner@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    assert login_response.status_code == 200
+    assert "Monitoramento autenticado" in login_response.text
+
+
+def test_web_and_api_analysis_routes_are_sync():
+    assert inspect.iscoroutinefunction(web_route.analyze_from_form) is False
+    assert inspect.iscoroutinefunction(analysis_route.analyze) is False
+    assert inspect.iscoroutinefunction(history_route.get_history) is False

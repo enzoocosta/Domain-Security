@@ -48,6 +48,8 @@ class ScoringService:
 
     @staticmethod
     def _score_mx(checks: AnalysisChecks) -> int:
+        if checks.mx.lookup_error:
+            return 50
         if checks.mx.status == "presente":
             return 100
         if checks.mx.status == "ausente":
@@ -57,6 +59,8 @@ class ScoringService:
     @staticmethod
     def _score_spf(checks: AnalysisChecks) -> int:
         spf = checks.spf
+        if spf.lookup_error:
+            return 50
         if spf.status == "ausente":
             return 0
         if spf.status == "invalido":
@@ -89,6 +93,8 @@ class ScoringService:
     @staticmethod
     def _score_dmarc(checks: AnalysisChecks) -> int:
         dmarc = checks.dmarc
+        if dmarc.lookup_error:
+            return 50
         if dmarc.status == "ausente":
             return 0
         if dmarc.status == "invalido":
@@ -123,6 +129,8 @@ class ScoringService:
         return 10
 
     def _score_consistency(self, checks: AnalysisChecks) -> int:
+        if checks.mx.lookup_error or checks.spf.lookup_error or checks.dmarc.lookup_error:
+            return 60
         score = 100
 
         if checks.mx.is_null_mx:

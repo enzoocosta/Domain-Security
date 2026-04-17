@@ -8,6 +8,23 @@
   </head>
   <body>
     <main class="container">
+      <nav class="top-nav">
+        <div class="nav-links">
+          <a href="/">Analise publica</a>
+          <a href="/monitoring">Monitoramento</a>
+        </div>
+        <div class="nav-links nav-auth">
+          {% if request.state.user_email %}
+            <span class="nav-user">{{ request.state.user_email }}</span>
+            <form method="post" action="/auth/logout" class="inline-form">
+              <button type="submit" class="ghost-button">Sair</button>
+            </form>
+          {% else %}
+            <a href="/auth/login">Entrar</a>
+            <a href="/auth/register">Criar conta</a>
+          {% endif %}
+        </div>
+      </nav>
       <header class="hero">
         <p class="eyebrow">Domain Security Checker</p>
         <h1>Diagnostico para seguranca de dominio e autenticacao de e-mail</h1>

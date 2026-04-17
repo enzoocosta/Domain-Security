@@ -36,6 +36,9 @@ def test_email_tls_service_reports_starttls_and_certificate():
     assert result.mx_results[0].certificate_valid is True
     assert result.mx_results[0].hostname_match is True
     assert result.has_email_tls_data is True
+    assert result.tested_mx_count == 1
+    assert result.total_mx_count == 1
+    assert result.probe_limited is False
     assert "certificados validos" in result.message
 
 
@@ -67,6 +70,52 @@ def test_email_tls_service_handles_missing_starttls():
     assert result.mx_results[0].has_tls_data is False
     assert result.has_email_tls_data is False
     assert "Nenhum MX testado anunciou STARTTLS" in result.message
+
+
+def test_email_tls_service_limits_mx_probes_by_priority():
+    probed_hosts: list[str] = []
+    service = EmailTLSService(
+        mx_probe_limit=2,
+        probe_func=lambda host, port: service_result_from_dict(
+            {
+                "host": host,
+                "port": port,
+                "starttls_supported": True,
+                "has_tls_data": True,
+                "certificate_valid": True,
+                "issuer": "Let's Encrypt",
+                "subject": f"CN={host}",
+                "not_before": None,
+                "not_after": None,
+                "days_to_expire": None,
+                "expiry_status": "desconhecido",
+                "tls_version": "TLSv1.3",
+                "hostname_match": True,
+                "error": None,
+            }
+        ),
+    )
+    original_probe = service.probe_func
+
+    def tracked_probe(host: str, port: int):
+        probed_hosts.append(host)
+        return original_probe(host, port)
+
+    service.probe_func = tracked_probe
+
+    result = service.analyze(
+        [
+            MXRecordValue(preference=20, exchange="mx2.example.com"),
+            MXRecordValue(preference=5, exchange="mx1.example.com"),
+            MXRecordValue(preference=30, exchange="mx3.example.com"),
+        ]
+    )
+
+    assert probed_hosts == ["mx1.example.com", "mx2.example.com"]
+    assert result.tested_mx_count == 2
+    assert result.total_mx_count == 3
+    assert result.probe_limited is True
+    assert "MX prioritarios" in result.probe_note
 
 
 def service_result_from_dict(payload: dict):

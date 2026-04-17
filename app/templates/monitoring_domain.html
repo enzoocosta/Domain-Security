@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel">
+    <div class="info-box">
+      <h2>{{ detail.domain.normalized_domain }}</h2>
+      {% if detail.domain.input_label %}
+        <p>{{ detail.domain.input_label }}</p>
+      {% endif %}
+      <div class="details-grid">
+        <div><span class="detail-label">Frequencia</span><strong>{{ detail.domain.monitoring_frequency }}</strong></div>
+        <div><span class="detail-label">Ultima execucao</span><strong>{{ detail.domain.last_run_at or "ainda nao executado" }}</strong></div>
+        <div><span class="detail-label">Proxima execucao</span><strong>{{ detail.domain.next_run_at }}</strong></div>
+        <div><span class="detail-label">Status</span><strong>{{ detail.domain.last_status or "agendado" }}</strong></div>
+        <div><span class="detail-label">Ultimo score</span><strong>{{ detail.domain.latest_score if detail.domain.latest_score is not none else "-" }}</strong></div>
+        <div><span class="detail-label">Ultima severity</span><strong>{{ detail.domain.latest_severity or "-" }}</strong></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <h3>Alertas abertos</h3>
+      {% if detail.open_alerts %}
+        <div class="stack-list">
+          {% for alert in detail.open_alerts %}
+            <article class="stack-item">
+              <p>
+                <span class="priority-badge priority-{{ alert.severity }}">{{ alert.severity }}</span>
+                <strong>{{ alert.title }}</strong>
+              </p>
+              <p>{{ alert.description }}</p>
+              <p class="muted">{{ alert.created_at }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Nenhum alerta aberto para este dominio.</p>
+      {% endif %}
+    </div>
+
+    <div class="info-box">
+      <h3>Historico resumido de execucoes</h3>
+      {% if detail.recent_runs %}
+        <div class="stack-list">
+          {% for run in detail.recent_runs %}
+            <article class="stack-item">
+              <p><strong>Execucao #{{ run.id }}</strong></p>
+              <div class="details-grid">
+                <div><span class="detail-label">Status</span><strong>{{ run.run_status }}</strong></div>
+                <div><span class="detail-label">Score</span><strong>{{ run.score if run.score is not none else "-" }}</strong></div>
+                <div><span class="detail-label">Severity</span><strong>{{ run.severity or "-" }}</strong></div>
+                <div><span class="detail-label">Inicio</span><strong>{{ run.started_at }}</strong></div>
+                <div><span class="detail-label">Fim</span><strong>{{ run.completed_at or "-" }}</strong></div>
+              </div>
+              {% if run.error_message %}
+                <p class="muted">Erro: {{ run.error_message }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Nenhuma execucao foi salva ainda para este dominio.</p>
+      {% endif %}
+    </div>
+
+    <p><a href="/monitoring">Voltar ao monitoramento</a></p>
+  </section>
+{% endblock %}

@@ -29,6 +29,31 @@ body {
   padding: 2rem 0 4rem;
 }
 
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px var(--shadow);
+}
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nav-user {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .hero {
   padding: 1rem 0 2rem;
 }
@@ -150,6 +175,15 @@ input {
   font-size: 1rem;
 }
 
+select {
+  width: 100%;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #b5cbc7;
+  font-size: 1rem;
+  background: #ffffff;
+}
+
 button {
   width: fit-content;
   padding: 0.9rem 1.2rem;
@@ -163,6 +197,28 @@ button {
 
 button:hover {
   background: var(--accent-dark);
+}
+
+.ghost-button {
+  background: transparent;
+  color: var(--accent-dark);
+  border: 1px solid var(--border);
+}
+
+.ghost-button:hover {
+  background: #eef6f5;
+}
+
+.inline-form {
+  margin: 0;
+}
+
+.compact-form {
+  gap: 0.7rem;
+}
+
+.auth-card {
+  max-width: 560px;
 }
 
 .message.error {

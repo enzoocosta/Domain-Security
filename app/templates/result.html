@@ -33,6 +33,69 @@
     </div>
 
     <div class="info-box">
+      <h3>Mudancas desde a ultima analise</h3>
+      <p>{{ result.changes.message }}</p>
+      {% if result.changes.has_previous_snapshot %}
+        <div class="summary-grid">
+          <div class="metric">
+            <span>Score</span>
+            <strong>{{ result.changes.previous_score }} -> {{ result.changes.current_score }}</strong>
+          </div>
+          <div class="metric">
+            <span>Variacao</span>
+            <strong>
+              {% if result.changes.score_delta is not none and result.changes.score_delta > 0 %}
+                +{{ result.changes.score_delta }}
+              {% elif result.changes.score_delta is not none %}
+                {{ result.changes.score_delta }}
+              {% else %}
+                -
+              {% endif %}
+            </strong>
+          </div>
+          <div class="metric">
+            <span>Severity anterior</span>
+            <strong>{{ result.changes.previous_severity or "-" }}</strong>
+          </div>
+          <div class="metric">
+            <span>Severity atual</span>
+            <strong>{{ result.changes.current_severity }}</strong>
+          </div>
+        </div>
+        {% if result.changes.changed_checks %}
+          <p class="section-label">Checks alterados</p>
+          <div class="stack-list">
+            {% for item in result.changes.changed_checks %}
+              <article class="stack-item">
+                <p><strong>{{ item.label }}</strong></p>
+                <p class="muted">
+                  {{ item.previous if item.previous is not none else "-" }} ->
+                  {{ item.current if item.current is not none else "-" }}
+                </p>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+        {% if result.changes.added_findings %}
+          <p class="section-label">Achados novos</p>
+          <ul>
+            {% for item in result.changes.added_findings %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        {% if result.changes.removed_findings %}
+          <p class="section-label">Achados resolvidos</p>
+          <ul>
+            {% for item in result.changes.removed_findings %}
+              <li>{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="info-box">
       <h3>TLS do website</h3>
       <p><span class="status-badge status-{{ 'presente' if result.website_tls.ssl_active else 'ausente' }}">{{ "presente" if result.website_tls.ssl_active else "ausente" }}</span></p>
       <p>{{ result.website_tls.message }}</p>
@@ -275,6 +338,7 @@
       </ul>
     </div>
 
+    <p><a href="/history/{{ result.normalized.analysis_domain }}">Ver historico deste dominio</a></p>
     <p><a href="/">Nova analise</a></p>
   </section>
 {% endblock %}

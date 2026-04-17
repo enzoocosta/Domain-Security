@@ -69,6 +69,8 @@ class RecommendationService:
 
     @staticmethod
     def _mx_recommendations(checks: AnalysisChecks) -> list[Recommendation]:
+        if checks.mx.lookup_error:
+            return []
         if checks.mx.status != "ausente":
             return []
         return [
@@ -84,6 +86,8 @@ class RecommendationService:
     @staticmethod
     def _spf_recommendations(checks: AnalysisChecks) -> list[Recommendation]:
         recommendations: list[Recommendation] = []
+        if checks.spf.lookup_error:
+            return recommendations
         if checks.spf.status == "ausente":
             recommendations.append(
                 Recommendation(
@@ -129,6 +133,8 @@ class RecommendationService:
     @staticmethod
     def _dmarc_recommendations(checks: AnalysisChecks) -> list[Recommendation]:
         recommendations: list[Recommendation] = []
+        if checks.dmarc.lookup_error:
+            return recommendations
         if checks.dmarc.status == "ausente":
             recommendations.append(
                 Recommendation(
@@ -340,6 +346,13 @@ class RecommendationService:
 
     @staticmethod
     def _mx_finding(checks: AnalysisChecks) -> Finding:
+        if checks.mx.lookup_error:
+            return Finding(
+                category="mx",
+                severity="medio",
+                title="MX inconclusivo",
+                detail=checks.mx.message,
+            )
         if checks.mx.is_null_mx:
             return Finding(
                 category="mx",
@@ -364,6 +377,13 @@ class RecommendationService:
     @staticmethod
     def _spf_finding(checks: AnalysisChecks) -> Finding:
         spf = checks.spf
+        if spf.lookup_error:
+            return Finding(
+                category="spf",
+                severity="medio",
+                title="SPF inconclusivo",
+                detail=spf.message,
+            )
         if spf.status == "ausente":
             return Finding(
                 category="spf",
@@ -416,6 +436,13 @@ class RecommendationService:
     @staticmethod
     def _dmarc_finding(checks: AnalysisChecks) -> Finding:
         dmarc = checks.dmarc
+        if dmarc.lookup_error:
+            return Finding(
+                category="dmarc",
+                severity="medio",
+                title="DMARC inconclusivo",
+                detail=dmarc.message,
+            )
         if dmarc.status == "ausente":
             return Finding(
                 category="dmarc",

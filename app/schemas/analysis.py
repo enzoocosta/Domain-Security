@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.history import AnalysisDiffSummary
+
 CategoryName = Literal[
     "dns",
     "mx",
@@ -59,6 +61,7 @@ class MXCheckResult(BaseModel):
     checked_name: str
     status: CheckStatus
     message: str
+    lookup_error: str | None = None
     records: list[MXRecord] = Field(default_factory=list)
     accepts_mail: bool | None = None
     is_null_mx: bool = False
@@ -68,6 +71,7 @@ class SPFCheckResult(BaseModel):
     checked_name: str
     status: CheckStatus
     message: str
+    lookup_error: str | None = None
     records: list[str] = Field(default_factory=list)
     effective_record: str | None = None
     final_all: SPFAllMechanism | None = None
@@ -82,6 +86,7 @@ class DMARCCheckResult(BaseModel):
     checked_name: str
     status: CheckStatus
     message: str
+    lookup_error: str | None = None
     records: list[str] = Field(default_factory=list)
     effective_record: str | None = None
     policy: Literal["none", "quarantine", "reject"] | None = None
@@ -98,6 +103,7 @@ class DKIMCheckResult(BaseModel):
     checked_name: str
     status: DKIMStatus
     message: str
+    lookup_error: str | None = None
     checked_selectors: list[str] = Field(default_factory=list)
     selectors_with_records: list[str] = Field(default_factory=list)
     records: list[str] = Field(default_factory=list)
@@ -142,6 +148,10 @@ class EmailTLSMXResult(BaseModel):
 class EmailTLSResult(BaseModel):
     mx_results: list[EmailTLSMXResult] = Field(default_factory=list)
     has_email_tls_data: bool = False
+    total_mx_count: int = Field(default=0, ge=0)
+    tested_mx_count: int = Field(default=0, ge=0)
+    probe_limited: bool = False
+    probe_note: str | None = None
     message: str
     note: str
 
@@ -175,6 +185,19 @@ class ScoreBreakdown(BaseModel):
     consistency_score: int = Field(..., ge=0, le=100)
 
 
+class AnalysisPerformance(BaseModel):
+    total_ms: int = Field(default=0, ge=0)
+    normalize_ms: int = Field(default=0, ge=0)
+    mx_ms: int = Field(default=0, ge=0)
+    spf_ms: int = Field(default=0, ge=0)
+    dmarc_ms: int = Field(default=0, ge=0)
+    dkim_ms: int = Field(default=0, ge=0)
+    website_tls_ms: int = Field(default=0, ge=0)
+    email_tls_ms: int = Field(default=0, ge=0)
+    rdap_ms: int = Field(default=0, ge=0)
+    cache_hit: bool = False
+
+
 class Finding(BaseModel):
     category: CategoryName
     severity: FindingSeverity
@@ -201,6 +224,8 @@ class AnalysisResponse(BaseModel):
     email_tls: EmailTLSResult
     domain_registration: DomainRegistrationResult
     score_breakdown: ScoreBreakdown
+    performance: AnalysisPerformance
+    changes: AnalysisDiffSummary
     findings: list[Finding] = Field(default_factory=list)
     recommendations: list[Recommendation] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

@@ -20,3 +20,15 @@ class DNSTimeoutError(DNSLookupError):
 
 class DNSNoResponseError(DNSLookupError):
     """Raised when DNS servers do not return a usable answer."""
+
+
+class ResourceConflictError(DomainSecurityError):
+    """Raised when the requested resource conflicts with existing data."""
+
+
+class AuthenticationError(DomainSecurityError):
+    """Raised when user authentication fails."""
+
+
+class AuthorizationError(DomainSecurityError):
+    """Raised when access to a protected resource is denied."""

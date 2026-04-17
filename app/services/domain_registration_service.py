@@ -12,7 +12,7 @@ class DomainRegistrationService:
 
     def __init__(self, fetcher=None, timeout_seconds: float | None = None, base_url: str | None = None) -> None:
         self.fetcher = fetcher or self._fetch_rdap_payload
-        self.timeout_seconds = timeout_seconds or settings.network_timeout_seconds
+        self.timeout_seconds = timeout_seconds or settings.rdap_timeout_seconds
         self.base_url = base_url or settings.rdap_base_url
 
     def analyze(self, domain: str) -> DomainRegistrationResult:

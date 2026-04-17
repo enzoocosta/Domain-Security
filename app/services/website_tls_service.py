@@ -20,7 +20,7 @@ class WebsiteTLSService:
 
     def __init__(self, probe_func=None, timeout_seconds: float | None = None) -> None:
         self.probe_func = probe_func or self._probe_https
-        self.timeout_seconds = timeout_seconds or settings.network_timeout_seconds
+        self.timeout_seconds = timeout_seconds or settings.website_tls_timeout_seconds
 
     def analyze(self, domain: str) -> WebsiteTLSResult:
         probe = self.probe_func(domain, 443)

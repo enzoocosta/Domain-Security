@@ -17,25 +17,43 @@ from app.utils.tls_helpers import (
 class EmailTLSService:
     """Checks STARTTLS support on MX hosts."""
 
-    def __init__(self, probe_func=None, timeout_seconds: float | None = None) -> None:
+    CERTIFICATE_NOTE = "O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal."
+
+    def __init__(
+        self,
+        probe_func=None,
+        timeout_seconds: float | None = None,
+        mx_probe_limit: int | None = None,
+    ) -> None:
         self.probe_func = probe_func or self._probe_mx
-        self.timeout_seconds = timeout_seconds or settings.network_timeout_seconds
+        self.timeout_seconds = timeout_seconds or settings.email_tls_timeout_seconds
+        self.mx_probe_limit = mx_probe_limit or settings.mx_probe_limit
 
     def analyze(self, mx_records: list[MXRecordValue]) -> EmailTLSResult:
         if not mx_records:
             return EmailTLSResult(
                 mx_results=[],
                 has_email_tls_data=False,
+                total_mx_count=0,
+                tested_mx_count=0,
+                probe_limited=False,
                 message="Nenhum MX foi encontrado para testar STARTTLS.",
-                note="O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal.",
+                note=self.CERTIFICATE_NOTE,
             )
 
-        results = [self.probe_func(record.exchange, 25) for record in mx_records]
+        prioritized_records = self._select_prioritized_records(mx_records)
+        probe_limited = len(prioritized_records) < len(mx_records)
+        probe_note = self._build_probe_note(len(prioritized_records), len(mx_records), probe_limited)
+        results = [self.probe_func(record.exchange, 25) for record in prioritized_records]
         return EmailTLSResult(
             mx_results=results,
             has_email_tls_data=any(item.has_tls_data for item in results),
-            message=self._build_message(results),
-            note="O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal.",
+            total_mx_count=len(mx_records),
+            tested_mx_count=len(prioritized_records),
+            probe_limited=probe_limited,
+            probe_note=probe_note,
+            message=self._build_message(results, len(prioritized_records), len(mx_records), probe_limited),
+            note=self.CERTIFICATE_NOTE,
         )
 
     def _probe_mx(self, host: str, port: int) -> EmailTLSMXResult:
@@ -173,11 +191,33 @@ class EmailTLSService:
         except ssl.CertificateError:
             return False
 
-    def _build_message(self, results: list[EmailTLSMXResult]) -> str:
+    def _select_prioritized_records(self, mx_records: list[MXRecordValue]) -> list[MXRecordValue]:
+        sorted_records = sorted(mx_records, key=lambda item: (item.preference, item.exchange))
+        return sorted_records[: self.mx_probe_limit]
+
+    @staticmethod
+    def _build_probe_note(tested_count: int, total_count: int, probe_limited: bool) -> str | None:
+        if not probe_limited:
+            return None
+        return (
+            f"A analise de STARTTLS foi limitada aos {tested_count} MX prioritarios "
+            f"de um total de {total_count} para otimizacao de performance."
+        )
+
+    @staticmethod
+    def _build_message(
+        results: list[EmailTLSMXResult],
+        tested_count: int,
+        total_count: int,
+        probe_limited: bool,
+    ) -> str:
         supported = [item for item in results if item.starttls_supported]
+        suffix = ""
+        if probe_limited:
+            suffix = f" Foram testados {tested_count} de {total_count} MX prioritarios."
         if not supported:
-            return "Nenhum MX testado anunciou STARTTLS com sucesso."
+            return f"Nenhum MX testado anunciou STARTTLS com sucesso.{suffix}".strip()
         valid = [item for item in supported if item.certificate_valid]
         if len(valid) == len(supported):
-            return "Os MX testados anunciaram STARTTLS e apresentaram certificados validos."
-        return "STARTTLS foi encontrado em parte dos MX, mas nem todos os certificados foram validados."
+            return f"Os MX testados anunciaram STARTTLS e apresentaram certificados validos.{suffix}".strip()
+        return f"STARTTLS foi encontrado em parte dos MX, mas nem todos os certificados foram validados.{suffix}".strip()

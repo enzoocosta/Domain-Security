@@ -10,7 +10,7 @@ service = DomainAnalysisService()
 
 
 @router.post("/analyze", response_model=AnalysisResponse, summary="Analisar um dominio ou e-mail")
-async def analyze(payload: AnalysisRequest) -> AnalysisResponse:
+def analyze(payload: AnalysisRequest) -> AnalysisResponse:
     try:
         return service.analyze_target(payload.target)
     except DomainSecurityError as exc:
