@@ -6,10 +6,11 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.core.exceptions import DomainSecurityError
+from app.presenters import configure_template_filters
 from app.services.auth_service import AuthenticationService
 
 router = APIRouter(include_in_schema=False)
-templates = Jinja2Templates(directory=str(settings.templates_dir))
+templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
 auth_service = AuthenticationService()
 
 
@@ -19,10 +20,11 @@ def register_page(request: Request) -> HTMLResponse:
         return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request=request,
-        name="auth_register.html",
+        name="pages/auth_register.html",
         context={
             "request": request,
             "page_title": "Criar conta",
+            "page_name": "auth",
             "error": None,
             "next_path": request.query_params.get("next", "/monitoring"),
         },
@@ -44,10 +46,11 @@ def register_user(
     except DomainSecurityError as exc:
         return templates.TemplateResponse(
             request=request,
-            name="auth_register.html",
+            name="pages/auth_register.html",
             context={
                 "request": request,
                 "page_title": "Criar conta",
+                "page_name": "auth",
                 "error": str(exc),
                 "next_path": next_path or "/monitoring",
             },
@@ -61,10 +64,11 @@ def login_page(request: Request) -> HTMLResponse:
         return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(
         request=request,
-        name="auth_login.html",
+        name="pages/auth_login.html",
         context={
             "request": request,
             "page_title": "Entrar",
+            "page_name": "auth",
             "error": None,
             "next_path": request.query_params.get("next", "/monitoring"),
         },
@@ -86,10 +90,11 @@ def login_user(
     except DomainSecurityError as exc:
         return templates.TemplateResponse(
             request=request,
-            name="auth_login.html",
+            name="pages/auth_login.html",
             context={
                 "request": request,
                 "page_title": "Entrar",
+                "page_name": "auth",
                 "error": str(exc),
                 "next_path": next_path or "/monitoring",
             },

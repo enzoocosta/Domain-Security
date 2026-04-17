@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card("Historico de analises", "Timeline", "Snapshots salvos para acompanhar evolucao de score e severidade.") %}
+    <div class="inline-meta">
+      <span>Dominio: {{ history.domain }}</span>
+      <span>Total de snapshots: {{ history.items | length }}</span>
+    </div>
+
+    {% if history.items %}
+      <div class="timeline-list">
+        {% for item in history.items %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>{{ item.created_at | format_datetime }}</h3>
+                <p>{{ item.summary }}</p>
+              </div>
+              <span class="badge badge--{{ item.severity }}">{{ item.severity | humanize_token }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Score", item.score, "info") }}
+              {{ render_metric_card("Severity", item.severity | humanize_token, "neutral") }}
+              {{ render_metric_card("Entrada", item.input_target, "neutral") }}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhuma analise salva</h3>
+        <p>Nenhuma analise salva foi encontrada para este dominio.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

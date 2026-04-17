@@ -7,11 +7,12 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.core.exceptions import AuthorizationError, DomainSecurityError
+from app.presenters import configure_template_filters
 from app.services.auth_service import AuthenticationService
 from app.services.monitoring_service import MonitoringService
 
 router = APIRouter(include_in_schema=False)
-templates = Jinja2Templates(directory=str(settings.templates_dir))
+templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
 auth_service = AuthenticationService()
 monitoring_service = MonitoringService()
 
@@ -25,10 +26,11 @@ def monitoring_dashboard(request: Request) -> HTMLResponse:
     dashboard = monitoring_service.get_dashboard(user_id=current_user.id)
     return templates.TemplateResponse(
         request=request,
-        name="monitoring_dashboard.html",
+        name="pages/monitoring_dashboard.html",
         context={
             "request": request,
             "page_title": "Monitoramento autenticado",
+            "page_name": "monitoring",
             "dashboard": dashboard,
             "error": None,
         },
@@ -58,10 +60,11 @@ def create_monitored_domain(
         dashboard = monitoring_service.get_dashboard(user_id=current_user.id)
         return templates.TemplateResponse(
             request=request,
-            name="monitoring_dashboard.html",
+            name="pages/monitoring_dashboard.html",
             context={
                 "request": request,
                 "page_title": "Monitoramento autenticado",
+                "page_name": "monitoring",
                 "dashboard": dashboard,
                 "error": str(exc),
             },
@@ -86,10 +89,11 @@ def monitored_domain_detail(request: Request, monitored_domain_id: int) -> HTMLR
         dashboard = monitoring_service.get_dashboard(user_id=current_user.id)
         return templates.TemplateResponse(
             request=request,
-            name="monitoring_dashboard.html",
+            name="pages/monitoring_dashboard.html",
             context={
                 "request": request,
                 "page_title": "Monitoramento autenticado",
+                "page_name": "monitoring",
                 "dashboard": dashboard,
                 "error": str(exc),
             },
@@ -98,10 +102,11 @@ def monitored_domain_detail(request: Request, monitored_domain_id: int) -> HTMLR
 
     return templates.TemplateResponse(
         request=request,
-        name="monitoring_domain.html",
+        name="pages/monitoring_domain.html",
         context={
             "request": request,
             "page_title": f"Monitoramento de {detail.domain.normalized_domain}",
+            "page_name": "monitoring",
             "detail": detail,
             "error": None,
         },

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card(detail.domain.normalized_domain, "Monitoramento do dominio", detail.domain.input_label or "Visao detalhada do dominio monitorado.") %}
+    <div class="metrics-grid">
+      {{ render_metric_card("Frequencia", detail.domain.monitoring_frequency, "neutral") }}
+      {{ render_metric_card("Ultima execucao", detail.domain.last_run_at | format_datetime if detail.domain.last_run_at else 'ainda nao executado', "neutral") }}
+      {{ render_metric_card("Proxima execucao", detail.domain.next_run_at | format_datetime, "info") }}
+      {{ render_metric_card("Status", detail.domain.last_status or 'agendado', "neutral") }}
+      {{ render_metric_card("Ultimo score", detail.domain.latest_score if detail.domain.latest_score is not none else '-', "info") }}
+      {{ render_metric_card("Ultima severity", detail.domain.latest_severity | humanize_token if detail.domain.latest_severity else '-', "neutral") }}
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Alertas abertos", "Prioridade", "Lista curta dos alertas ativos vinculados a este dominio.") %}
+    {% if detail.open_alerts %}
+      <div class="recommendation-list">
+        {% for alert in detail.open_alerts %}
+          <article class="recommendation-item">
+            <div class="recommendation-item__header">
+              <div>
+                <span class="eyebrow-label">Alerta</span>
+                <h3>{{ alert.title }}</h3>
+              </div>
+              <span class="badge badge--{{ alert.severity }}">{{ alert.severity | humanize_token }}</span>
+            </div>
+            <p class="recommendation-item__action">{{ alert.description }}</p>
+            <p class="recommendation-item__rationale">{{ alert.created_at | format_datetime }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum alerta aberto</h3>
+        <p>Nenhum alerta aberto para este dominio.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Historico resumido de execucoes", "Timeline", "Ultimas execucoes com status, score e janela temporal.") %}
+    {% if detail.recent_runs %}
+      <div class="timeline-list">
+        {% for run in detail.recent_runs %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>Execucao #{{ run.id }}</h3>
+                <p>{{ run.started_at | format_datetime }}{% if run.completed_at %} ate {{ run.completed_at | format_datetime }}{% endif %}</p>
+              </div>
+              <span class="badge badge--{{ run.severity or 'neutral' }}">{{ run.severity | humanize_token if run.severity else run.run_status | humanize_token }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Status", run.run_status | humanize_token, "neutral") }}
+              {{ render_metric_card("Score", run.score if run.score is not none else '-', "info") }}
+              {{ render_metric_card("Severity", run.severity | humanize_token if run.severity else '-', "neutral") }}
+            </div>
+            {% if run.error_message %}
+              <p class="detail-card__note">Erro: {{ run.error_message }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhuma execucao salva</h3>
+        <p>Nenhuma execucao foi salva ainda para este dominio.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

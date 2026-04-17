@@ -1,0 +1,25 @@
+{% macro render_section_card(title, eyebrow=None, subtitle=None, classes='', actions=None, anchor=None) -%}
+  <section {% if anchor %}id="{{ anchor }}"{% endif %} class="section-card {{ classes }}">
+    <div class="section-card__header">
+      <div>
+        {% if eyebrow %}
+          <p class="section-card__eyebrow">{{ eyebrow }}</p>
+        {% endif %}
+        <h2>{{ title }}</h2>
+        {% if subtitle %}
+          <p class="section-card__subtitle">{{ subtitle }}</p>
+        {% endif %}
+      </div>
+      {% if actions %}
+        <div class="section-card__actions">
+          {% for action in actions %}
+            <a href="{{ action.href }}" class="button button--{{ action.style or 'secondary' }}">{{ action.label }}</a>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="section-card__body">
+      {{ caller() }}
+    </div>
+  </section>
+{%- endmacro %}

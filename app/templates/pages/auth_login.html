@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+
+{% block content %}
+  <div class="single-column">
+    {% call render_section_card("Entrar", "Acesso autenticado", "A analise publica continua aberta. O login e usado apenas para monitoramento recorrente.") %}
+      {% if error %}
+        <div class="message message--error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post" action="/auth/login" class="form-layout">
+        <input type="hidden" name="next_path" value="{{ next_path or '/monitoring' }}" />
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" maxlength="320" required />
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" maxlength="128" required />
+        <button type="submit" class="button button--primary">Entrar</button>
+      </form>
+
+      <p class="text-muted">Ainda sem conta? <a href="/auth/register{% if next_path %}?next={{ next_path }}{% endif %}">Criar uma conta</a>.</p>
+    {% endcall %}
+  </div>
+{% endblock %}

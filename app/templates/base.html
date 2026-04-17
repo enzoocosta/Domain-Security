@@ -4,35 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ page_title or "Domain Security Checker" }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}" />
+    <meta
+      name="description"
+      content="Diagnostico para seguranca de dominio, autenticacao de e-mail, TLS e dados de registro com honestidade tecnica."
+    />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/tokens.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/layout.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/components.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/pages/home.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/pages/result.css') }}" />
   </head>
-  <body>
-    <main class="container">
-      <nav class="top-nav">
-        <div class="nav-links">
-          <a href="/">Analise publica</a>
-          <a href="/monitoring">Monitoramento</a>
-        </div>
-        <div class="nav-links nav-auth">
-          {% if request.state.user_email %}
-            <span class="nav-user">{{ request.state.user_email }}</span>
-            <form method="post" action="/auth/logout" class="inline-form">
-              <button type="submit" class="ghost-button">Sair</button>
-            </form>
-          {% else %}
-            <a href="/auth/login">Entrar</a>
-            <a href="/auth/register">Criar conta</a>
-          {% endif %}
-        </div>
-      </nav>
-      <header class="hero">
-        <p class="eyebrow">Domain Security Checker</p>
-        <h1>Diagnostico para seguranca de dominio e autenticacao de e-mail</h1>
-        <p class="subtitle">
-          Analise pratica de DNS, SPF, DKIM, SSL e DMARC .
-        </p>
-      </header>
-      {% block content %}{% endblock %}
-    </main>
+  <body class="app-body page-{{ page_name or 'default' }}">
+    <div class="app-background" aria-hidden="true"></div>
+    <div class="app-shell">
+      {% include "partials/header.html" %}
+      <main class="page-shell">
+        {% block content %}{% endblock %}
+      </main>
+      {% include "partials/footer.html" %}
+    </div>
   </body>
 </html>

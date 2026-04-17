@@ -1,0 +1,9 @@
+{% macro render_metric_card(label, value, tone='neutral', detail='', classes='') -%}
+  <div class="metric-card metric-card--{{ tone }} {{ classes }}">
+    <span class="metric-card__label">{{ label }}</span>
+    <strong class="metric-card__value">{{ value }}</strong>
+    {% if detail %}
+      <span class="metric-card__detail">{{ detail }}</span>
+    {% endif %}
+  </div>
+{%- endmacro %}

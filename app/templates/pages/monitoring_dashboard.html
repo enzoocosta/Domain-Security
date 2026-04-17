@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card("Monitoramento autenticado", "Workspace privado", "Area focada em acompanhamento recorrente de mudancas criticas.") %}
+    <div class="inline-meta">
+      <span>Usuario: {{ dashboard.user_email }}</span>
+      <span>Dominios monitorados: {{ dashboard.monitored_domains | length }}</span>
+      <span>Alertas abertos: {{ dashboard.open_alerts | length }}</span>
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Adicionar dominio monitorado", "Cadastro", "Rotulo opcional e frequencia configuravel para o dominio acompanhado.") %}
+    {% if error %}
+      <div class="message message--error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/monitoring/domains" class="form-layout">
+      <label for="domain">Dominio</label>
+      <input id="domain" name="domain" type="text" maxlength="320" placeholder="example.com" required />
+      <label for="input_label">Rotulo opcional</label>
+      <input id="input_label" name="input_label" type="text" maxlength="255" placeholder="Dominio principal" />
+      <label for="monitoring_frequency">Frequencia</label>
+      <select id="monitoring_frequency" name="monitoring_frequency">
+        <option value="daily">daily</option>
+        <option value="weekly">weekly</option>
+        <option value="monthly">monthly</option>
+      </select>
+      <button type="submit" class="button button--primary">Salvar monitoramento</button>
+    </form>
+  {% endcall %}
+
+  {% call render_section_card("Alertas abertos", "Prioridade", "Mudancas de postura e alertas ativos que merecem atencao.") %}
+    {% if dashboard.open_alerts %}
+      <div class="recommendation-list">
+        {% for alert in dashboard.open_alerts %}
+          <article class="recommendation-item">
+            <div class="recommendation-item__header">
+              <div>
+                <span class="eyebrow-label">Alerta</span>
+                <h3>{{ alert.title }}</h3>
+              </div>
+              <span class="badge badge--{{ alert.severity }}">{{ alert.severity | humanize_token }}</span>
+            </div>
+            <p class="recommendation-item__action">{{ alert.description }}</p>
+            <p class="recommendation-item__rationale">{{ alert.created_at | format_datetime }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum alerta aberto</h3>
+        <p>Nenhum alerta aberto no momento.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Dominios monitorados", "Inventario", "Cada dominio lista score, severidade e proxima execucao para acompanhamento rapido.") %}
+    {% if dashboard.monitored_domains %}
+      <div class="timeline-list">
+        {% for item in dashboard.monitored_domains %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3><a href="/monitoring/domains/{{ item.id }}">{{ item.normalized_domain }}</a></h3>
+                {% if item.input_label %}
+                  <p>{{ item.input_label }}</p>
+                {% endif %}
+              </div>
+              <span class="badge badge--{{ item.latest_severity or 'neutral' }}">{{ item.latest_severity | humanize_token if item.latest_severity else 'Agendado' }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Frequencia", item.monitoring_frequency, "neutral") }}
+              {{ render_metric_card("Ultima execucao", item.last_run_at | format_datetime if item.last_run_at else 'ainda nao executado', "neutral") }}
+              {{ render_metric_card("Proxima execucao", item.next_run_at | format_datetime, "info") }}
+              {{ render_metric_card("Status", item.last_status or 'agendado', "neutral") }}
+              {{ render_metric_card("Ultimo score", item.latest_score if item.latest_score is not none else '-', "info") }}
+              {{ render_metric_card("Alertas abertos", item.open_alert_count, "warning") }}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum dominio monitorado</h3>
+        <p>Nenhum dominio monitorado foi cadastrado ainda.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

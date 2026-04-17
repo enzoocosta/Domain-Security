@@ -1,0 +1,10 @@
+{% macro render_finding_card(item) -%}
+  <article class="finding-card finding-card--{{ item.severity.tone }}">
+    <div class="finding-card__header">
+      <span class="badge badge--{{ item.severity.tone }}">{{ item.severity.label }}</span>
+      <span class="eyebrow-label">{{ item.category }}</span>
+    </div>
+    <h3>{{ item.title }}</h3>
+    <p>{{ item.detail }}</p>
+  </article>
+{%- endmacro %}

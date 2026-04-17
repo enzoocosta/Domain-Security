@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request, status
@@ -7,13 +8,15 @@ from fastapi.templating import Jinja2Templates
 from app.api.routes.error_utils import get_http_status_code
 from app.core.config import settings
 from app.core.exceptions import DomainSecurityError
+from app.presenters import ReportPresenter, configure_template_filters
 from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.analysis_service import DomainAnalysisService
 
 router = APIRouter(include_in_schema=False)
-templates = Jinja2Templates(directory=str(settings.templates_dir))
+templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
 service = DomainAnalysisService()
 history_service = AnalysisHistoryService()
+report_presenter = ReportPresenter()
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -21,13 +24,13 @@ def home(request: Request) -> HTMLResponse:
     context = {
         "request": request,
         "page_title": settings.app_name,
+        "page_name": "home",
         "error": None,
-        "result": None,
         "submitted_target": "",
     }
     return templates.TemplateResponse(
         request=request,
-        name="index.html",
+        name="pages/home.html",
         context=context,
     )
 
@@ -43,27 +46,33 @@ def analyze_from_form(
         context = {
             "request": request,
             "page_title": settings.app_name,
+            "page_name": "home",
             "error": str(exc),
-            "result": None,
             "submitted_target": target,
         }
         return templates.TemplateResponse(
             request=request,
-            name="index.html",
+            name="pages/home.html",
             context=context,
             status_code=get_http_status_code(exc),
         )
 
+    report = report_presenter.present(
+        result,
+        submitted_target=target,
+        analyzed_at=datetime.now(tz=UTC),
+    )
     context = {
         "request": request,
         "page_title": "Resultado da Analise",
+        "page_name": "result",
         "error": None,
-        "result": result,
+        "report": report,
         "submitted_target": target,
     }
     return templates.TemplateResponse(
         request=request,
-        name="result.html",
+        name="pages/result.html",
         context=context,
         status_code=status.HTTP_200_OK,
     )
@@ -77,24 +86,25 @@ def history_page(request: Request, domain: str) -> HTMLResponse:
         context = {
             "request": request,
             "page_title": settings.app_name,
+            "page_name": "home",
             "error": str(exc),
-            "result": None,
             "submitted_target": domain,
         }
         return templates.TemplateResponse(
             request=request,
-            name="index.html",
+            name="pages/home.html",
             context=context,
             status_code=get_http_status_code(exc),
         )
     context = {
         "request": request,
         "page_title": f"Historico de {history.domain}",
+        "page_name": "history",
         "history": history,
     }
     return templates.TemplateResponse(
         request=request,
-        name="history.html",
+        name="pages/history.html",
         context=context,
         status_code=status.HTTP_200_OK,
     )

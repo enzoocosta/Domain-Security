@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  <section class="home-hero">
+    <div class="home-hero__content">
+      <div class="home-hero__copy">
+        <p class="eyebrow">Domain Security Checker</p>
+        <h1>Diagnostico para seguranca de dominio e autenticacao de e-mail</h1>
+        <p class="home-hero__lead">
+          Analise publica de DNS, MX, SPF, DKIM, DMARC, TLS/SSL e dados de registro
+          com visual claro, leitura rapida e limites tecnicos explicitos.
+        </p>
+        <div class="hero-chip-row">
+          <span class="hero-chip">DNS & MX</span>
+          <span class="hero-chip">Email Authentication</span>
+          <span class="hero-chip">TLS do website</span>
+          <span class="hero-chip">Registro do dominio</span>
+        </div>
+      </div>
+
+      <aside class="hero-form-card">
+        <p class="surface-label">Analise publica</p>
+        <h2>Verifique um dominio ou e-mail em segundos</h2>
+        <p class="text-muted">
+          Um unico campo. Sem fluxo confuso. Resultado orientado a achados, recomendacoes
+          e leitura executiva.
+        </p>
+
+        {% if error %}
+          <div class="message message--error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/analyze" class="analysis-form">
+          <label for="target">Dominio ou e-mail</label>
+          <input
+            id="target"
+            name="target"
+            type="text"
+            placeholder="example.com ou security@example.com"
+            value="{{ submitted_target }}"
+            maxlength="320"
+            required
+          />
+          <button type="submit" class="button button--primary button--block">Analisar seguranca</button>
+        </form>
+
+        <p class="form-hint">Entrada unica para dominio ou e-mail corporativo.</p>
+      </aside>
+    </div>
+
+    <div class="hero-proof-grid">
+      {{ render_metric_card("Analise", "Rapida", "info", "Leitura objetiva e sem ruido") }}
+      {{ render_metric_card("Saida", "Priorizada", "success", "Findings e recomendacoes em ordem util") }}
+      {{ render_metric_card("Tom", "Confiavel", "neutral", "Sem exagero visual ou falsa certeza") }}
+    </div>
+  </section>
+
+  {% call render_section_card("O que e analisado", "Cobertura tecnica", "A homepage comunica amplitude tecnica sem parecer um dashboard improvisado.") %}
+    <div class="feature-grid">
+      <article class="feature-card">
+        <h3>DNS, MX e roteamento</h3>
+        <p>Presenca de MX, postura basica de entrega e leitura clara para quem precisa agir.</p>
+      </article>
+      <article class="feature-card">
+        <h3>SPF, DKIM e DMARC</h3>
+        <p>Autenticacao de e-mail com tratamento honesto para estados incertos e limites de verificacao.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Website TLS/SSL</h3>
+        <p>Issuer real, validade do certificado, versao TLS e separacao clara entre fato e provider guess.</p>
+      </article>
+      <article class="feature-card">
+        <h3>Registro do dominio</h3>
+        <p>Criacao, expiracao, registrador e status apenas quando a origem realmente retorna esse dado.</p>
+      </article>
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Como o resultado e apresentado", "Hierarquia", "Resumo executivo primeiro, detalhes tecnicos depois, sempre com foco em legibilidade.") %}
+    <div class="trust-grid">
+      <article class="trust-card">
+        <h3>Resumo executivo</h3>
+        <p>Score, severidade, mensagem curta e proximos passos visiveis sem rolagem excessiva.</p>
+      </article>
+      <article class="trust-card">
+        <h3>Achados e recomendacoes</h3>
+        <p>O que importa aparece primeiro, com contexto suficiente para tomada de decisao.</p>
+      </article>
+      <article class="trust-card">
+        <h3>Honestidade tecnica</h3>
+        <p>DKIM, TLS e RDAP mantem limites explicitos para evitar afirmacoes mais fortes do que a evidencia suporta.</p>
+      </article>
+    </div>
+  {% endcall %}
+{% endblock %}

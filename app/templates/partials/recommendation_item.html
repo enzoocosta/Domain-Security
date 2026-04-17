@@ -1,0 +1,13 @@
+{% macro render_recommendation_item(item) -%}
+  <article class="recommendation-item">
+    <div class="recommendation-item__header">
+      <div>
+        <span class="eyebrow-label">{{ item.category }}</span>
+        <h3>{{ item.title }}</h3>
+      </div>
+      <span class="badge badge--{{ item.priority.tone }}">{{ item.priority.label }}</span>
+    </div>
+    <p class="recommendation-item__action">{{ item.action }}</p>
+    <p class="recommendation-item__rationale">{{ item.rationale }}</p>
+  </article>
+{%- endmacro %}

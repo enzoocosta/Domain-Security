@@ -1,0 +1,29 @@
+<header class="site-header">
+  <div class="site-header__inner">
+    <a href="/" class="brand">
+      <span class="brand__mark">DS</span>
+      <span class="brand__copy">
+        <span class="brand__title">Domain Security Checker</span>
+        <span class="brand__subtitle">Enterprise security SaaS</span>
+      </span>
+    </a>
+
+    <nav class="site-nav" aria-label="Navegacao principal">
+      <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Analise publica</a>
+      <a href="/monitoring" class="{% if request.url.path.startswith('/monitoring') %}is-active{% endif %}">Monitoramento</a>
+      <a href="/docs" class="{% if request.url.path.startswith('/docs') %}is-active{% endif %}">API docs</a>
+    </nav>
+
+    <div class="site-header__actions">
+      {% if request.state.user_email %}
+        <span class="user-chip">{{ request.state.user_email }}</span>
+        <form method="post" action="/auth/logout" class="inline-form">
+          <button type="submit" class="button button--ghost button--small">Sair</button>
+        </form>
+      {% else %}
+        <a href="/auth/login" class="button button--ghost button--small">Entrar</a>
+        <a href="/auth/register" class="button button--secondary button--small">Criar conta</a>
+      {% endif %}
+    </div>
+  </div>
+</header>

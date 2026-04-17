@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+{% from "partials/finding_card.html" import render_finding_card %}
+{% from "partials/recommendation_item.html" import render_recommendation_item %}
+
+{% block content %}
+  {% call render_section_card("Resultado da analise", "Resumo executivo", report.executive.summary, "section-card--hero", report.executive.actions) %}
+    <div class="summary-hero">
+      <div class="summary-hero__copy">
+        <p class="eyebrow-label">Dominio analisado</p>
+        <h1>{{ report.executive.domain }}</h1>
+        <p class="summary-hero__status">{{ report.executive.status_text }}</p>
+        <div class="summary-meta">
+          <span>Entrada: {{ report.executive.input }}</span>
+          <span>Tipo: {{ report.executive.target_type }}</span>
+          <span>Analisado em: {{ report.executive.analyzed_at }}</span>
+        </div>
+      </div>
+
+      <aside class="summary-score">
+        <span class="surface-label">Score geral</span>
+        <strong>{{ report.executive.score }}</strong>
+        <span class="summary-score__caption">{{ report.executive.score_caption }}</span>
+        <span class="badge badge--{{ report.executive.severity.tone }}">{{ report.executive.severity.label }}</span>
+      </aside>
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Detalhamento do score", "Score", "Visao rapida por camada analisada para localizar os pontos mais fracos.") %}
+    <div class="metrics-grid">
+      {% for metric in report.score_breakdown %}
+        {{ render_metric_card(metric.label, metric.value, metric.tone, metric.detail) }}
+      {% endfor %}
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Mudancas desde a ultima analise", "Evolucao", report.changes.message) %}
+    {% if report.changes.metrics %}
+      <div class="metrics-grid">
+        {% for metric in report.changes.metrics %}
+          {{ render_metric_card(metric.label, metric.value, metric.tone, metric.detail) }}
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if report.changes.changed_checks %}
+      <div class="list-block">
+        <p class="list-block__title">Checks alterados</p>
+        <div class="change-list">
+          {% for item in report.changes.changed_checks %}
+            <article class="change-card">
+              <strong>{{ item.label }}</strong>
+              <p>{{ item.previous }} -> {{ item.current }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if report.changes.added_findings %}
+      <div class="list-block">
+        <p class="list-block__title">Achados novos</p>
+        <ul class="bullet-list">
+          {% for item in report.changes.added_findings %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if report.changes.removed_findings %}
+      <div class="list-block">
+        <p class="list-block__title">Achados resolvidos</p>
+        <ul class="bullet-list">
+          {% for item in report.changes.removed_findings %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Principais findings", "Prioridade visual", "Os itens de maior impacto aparecem primeiro e com severidade clara.") %}
+    {% if report.findings %}
+      <div class="findings-grid">
+        {% for item in report.findings %}
+          {{ render_finding_card(item) }}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum finding relevante</h3>
+        <p>Esta analise nao retornou achados prioritarios para destacar neste momento.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Recomendacoes", "Plano de acao", "Ordem do mais importante para o menos importante, com contexto curto para execucao.") %}
+    {% if report.recommendations %}
+      <div class="recommendation-list">
+        {% for item in report.recommendations %}
+          {{ render_recommendation_item(item) }}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Sem recomendacoes adicionais</h3>
+        <p>O resultado atual nao exige um plano de acao complementar alem do acompanhamento normal.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% for section in report.technical_sections %}
+    {% call render_section_card(section.title, "Secao tecnica", section.description, "", None, section.id) %}
+      {% if section.cards %}
+        <div class="technical-grid">
+          {% for card in section.cards %}
+            <article class="detail-card">
+              <div class="detail-card__header">
+                <div>
+                  <h3>{{ card.title }}</h3>
+                  <p>{{ card.summary }}</p>
+                </div>
+                {% if card.badge %}
+                  <span class="badge badge--{{ card.badge.tone }}">{{ card.badge.label }}</span>
+                {% endif %}
+              </div>
+
+              {% if card.fields %}
+                <div class="metrics-grid metrics-grid--compact">
+                  {% for field in card.fields %}
+                    {{ render_metric_card(field.label, field.value, field.tone, field.detail, 'metric-card--compact') }}
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              {% if card.lists %}
+                {% for list_block in card.lists %}
+                  <div class="list-block">
+                    <p class="list-block__title">{{ list_block.label }}</p>
+                    <ul class="bullet-list">
+                      {% for item in list_block["items"] %}
+                        <li>{{ item }}</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              {% if card.note %}
+                <p class="detail-card__note">{{ card.note }}</p>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% elif section.empty_text %}
+        <div class="empty-state">
+          <h3>{{ section.title }}</h3>
+          <p>{{ section.empty_text }}</p>
+        </div>
+      {% endif %}
+    {% endcall %}
+  {% endfor %}
+{% endblock %}
