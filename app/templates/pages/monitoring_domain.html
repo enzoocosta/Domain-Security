@@ -4,11 +4,30 @@
 
 {% block content %}
   {% call render_section_card(detail.domain.normalized_domain, "Monitoramento do dominio", detail.domain.input_label or "Visao detalhada do dominio monitorado.") %}
+    <div class="action-row section-actions-bottom">
+      <a href="/reports/{{ detail.domain.normalized_domain }}.pdf" class="button button--secondary button--small">Exportar PDF</a>
+      {% if detail.domain.monitoring_status == 'active' %}
+        <form method="post" action="/monitoring/domains/{{ detail.domain.id }}/pause" class="inline-form">
+          <input type="hidden" name="next_path" value="/monitoring/domains/{{ detail.domain.id }}" />
+          <button type="submit" class="button button--ghost button--small">Pausar</button>
+        </form>
+      {% elif detail.domain.monitoring_status == 'paused' %}
+        <form method="post" action="/monitoring/domains/{{ detail.domain.id }}/resume" class="inline-form">
+          <input type="hidden" name="next_path" value="/monitoring/domains/{{ detail.domain.id }}" />
+          <button type="submit" class="button button--secondary button--small">Retomar</button>
+        </form>
+      {% endif %}
+      <form method="post" action="/monitoring/domains/{{ detail.domain.id }}/delete" class="inline-form">
+        <input type="hidden" name="next_path" value="/monitoring" />
+        <button type="submit" class="button button--danger button--small">Excluir</button>
+      </form>
+    </div>
     <div class="metrics-grid">
       {{ render_metric_card("Frequencia", detail.domain.monitoring_frequency, "neutral") }}
+      {{ render_metric_card("Status do monitoramento", detail.domain.monitoring_status | humanize_token, "neutral") }}
       {{ render_metric_card("Ultima execucao", detail.domain.last_run_at | format_datetime if detail.domain.last_run_at else 'ainda nao executado', "neutral") }}
       {{ render_metric_card("Proxima execucao", detail.domain.next_run_at | format_datetime, "info") }}
-      {{ render_metric_card("Status", detail.domain.last_status or 'agendado', "neutral") }}
+      {{ render_metric_card("Status da ultima execucao", detail.domain.last_status or 'agendado', "neutral") }}
       {{ render_metric_card("Ultimo score", detail.domain.latest_score if detail.domain.latest_score is not none else '-', "info") }}
       {{ render_metric_card("Ultima severity", detail.domain.latest_severity | humanize_token if detail.domain.latest_severity else '-', "neutral") }}
     </div>

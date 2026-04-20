@@ -187,9 +187,15 @@ class MonitoringAlertService:
             event.severity = candidate.severity
             event.title = candidate.title
             event.description = candidate.description
+            was_resolved = event.status == "resolved"
             event.status = "open"
             event.monitoring_run_id = monitoring_run.id
             event.resolved_at = None
+            if was_resolved:
+                event.email_delivery_status = "pending"
+                event.email_last_attempt_at = None
+                event.email_sent_at = None
+                event.email_last_error = None
             synced_events.append(event)
             active_candidates.pop(event.alert_type, None)
 
@@ -202,6 +208,7 @@ class MonitoringAlertService:
                 title=candidate.title,
                 description=candidate.description,
                 status="open",
+                email_delivery_status="pending",
                 created_at=current_time,
             )
             db.add(event)

@@ -198,6 +198,16 @@ ul {
   color: var(--text-soft);
 }
 
+.button--danger {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.button--danger:hover {
+  background: #991b1b;
+  color: #ffffff;
+}
+
 .button--small {
   padding: 0.65rem 0.9rem;
   font-size: 0.9rem;

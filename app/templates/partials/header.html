@@ -11,6 +11,7 @@
     <nav class="site-nav" aria-label="Navegacao principal">
       <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Analise publica</a>
       <a href="/monitoring" class="{% if request.url.path.startswith('/monitoring') %}is-active{% endif %}">Monitoramento</a>
+      <a href="/discovery" class="{% if request.url.path.startswith('/discovery') %}is-active{% endif %}">Asset discovery</a>
       <a href="/docs" class="{% if request.url.path.startswith('/docs') %}is-active{% endif %}">API docs</a>
     </nav>
 

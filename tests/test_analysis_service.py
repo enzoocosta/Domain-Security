@@ -3,7 +3,14 @@ from time import perf_counter, sleep
 
 from app.core.analysis_cache import AnalysisCache
 from app.core.exceptions import DNSTimeoutError
-from app.schemas.analysis import DomainRegistrationResult, EmailTLSMXResult, EmailTLSResult, WebsiteTLSResult
+from app.schemas.analysis import (
+    DomainRegistrationResult,
+    EmailTLSMXResult,
+    EmailTLSResult,
+    IPIntelligenceResult,
+    ResolvedIPAddress,
+    WebsiteTLSResult,
+)
 from app.services.analysis_service import DomainAnalysisService
 from app.services.dns_service import MXRecordValue
 from app.services.email_auth_service import EmailAuthenticationService
@@ -13,6 +20,7 @@ from tests.fakes import (
     StubDNSService,
     StubDomainRegistrationService,
     StubEmailTLSService,
+    StubIPIntelligenceService,
     StubWebsiteTLSService,
 )
 
@@ -77,6 +85,34 @@ def _registration_ok() -> DomainRegistrationResult:
     )
 
 
+def _ip_intelligence_ok() -> IPIntelligenceResult:
+    return IPIntelligenceResult(
+        resolved_ips=[
+            ResolvedIPAddress(
+                ip="93.184.216.34",
+                version="ipv4",
+                source_record_type="A",
+                is_public=True,
+            )
+        ],
+        primary_ip="93.184.216.34",
+        ip_version="ipv4",
+        is_public=True,
+        has_public_ip=True,
+        reverse_dns="edge.example.net",
+        organization="Example Edge",
+        provider_guess="Example Edge",
+        country="US",
+        region="California",
+        city="Los Angeles",
+        timezone="America/Los_Angeles",
+        confidence="media",
+        message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
+        notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
+        source="ipinfo",
+    )
+
+
 def test_normalize_target_extracts_domain_from_email():
     normalized = normalize_target("Admin@Example.com")
 
@@ -105,6 +141,7 @@ def test_analysis_service_builds_scored_result():
         website_tls_service=StubWebsiteTLSService(_website_tls_ok()),
         email_tls_service=StubEmailTLSService(_email_tls_ok()),
         domain_registration_service=StubDomainRegistrationService(_registration_ok()),
+        ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_ok()),
         history_service=StubAnalysisHistoryService(),
     )
 
@@ -122,6 +159,7 @@ def test_analysis_service_builds_scored_result():
     assert result.email_tls.has_email_tls_data is True
     assert result.email_tls.mx_results[0].starttls_supported is True
     assert result.domain_registration.rdap_available is True
+    assert result.ip_intelligence.primary_ip == "93.184.216.34"
     assert result.changes.has_previous_snapshot is False
     assert result.score >= 85
     assert result.severity in {"bom", "excelente"}

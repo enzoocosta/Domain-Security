@@ -7,6 +7,7 @@ from app.core.exceptions import (
     DNSNoResponseError,
     DNSTimeoutError,
     DomainSecurityError,
+    FeatureUnavailableError,
     InputValidationError,
     ResourceConflictError,
 )
@@ -21,6 +22,8 @@ def get_http_status_code(exc: DomainSecurityError) -> int:
         return status.HTTP_403_FORBIDDEN
     if isinstance(exc, ResourceConflictError):
         return status.HTTP_409_CONFLICT
+    if isinstance(exc, FeatureUnavailableError):
+        return status.HTTP_503_SERVICE_UNAVAILABLE
     if isinstance(exc, DNSDomainNotFoundError):
         return status.HTTP_404_NOT_FOUND
     if isinstance(exc, DNSTimeoutError):

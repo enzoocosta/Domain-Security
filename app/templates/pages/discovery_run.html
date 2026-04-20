@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card(detail.run.normalized_domain, "Asset discovery", "Execucao separada do fluxo principal de analise, com foco em subdominios observados.") %}
+    <div class="action-row section-actions-bottom">
+      <a href="/discovery" class="button button--ghost button--small">Voltar</a>
+    </div>
+    <div class="metrics-grid">
+      {{ render_metric_card("Provider", detail.run.provider, "neutral") }}
+      {{ render_metric_card("Status", detail.run.status | humanize_token, "neutral") }}
+      {{ render_metric_card("Ativos", detail.run.asset_count, "info") }}
+      {{ render_metric_card("Novos", detail.run.new_asset_count, "success") }}
+      {{ render_metric_card("Iniciado em", detail.run.started_at | format_datetime, "neutral") }}
+      {{ render_metric_card("Concluido em", detail.run.completed_at | format_datetime if detail.run.completed_at else '-', "neutral") }}
+    </div>
+    {% if detail.run.error_message %}
+      <p class="detail-card__note top-spacing">{{ detail.run.error_message }}</p>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Subdominios observados", "Resultados", "Achados persistidos desta execucao. Novidade significa apenas que o sistema ainda nao havia observado o subdominio em execucoes anteriores.") %}
+    {% if detail.subdomains %}
+      <div class="timeline-list">
+        {% for item in detail.subdomains %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>{{ item.fqdn }}</h3>
+                <p>{{ item.created_at | format_datetime }}</p>
+              </div>
+              <span class="badge badge--{{ 'success' if item.is_new else 'neutral' }}">{{ 'Novo' if item.is_new else 'Ja conhecido' }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Fonte", item.source or '-', "neutral") }}
+              {{ render_metric_card("IPs", item.ip_addresses | join(', ') if item.ip_addresses else '-', "neutral") }}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum subdominio persistido</h3>
+        <p>Esta execucao nao retornou achados utilizaveis para persistencia.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

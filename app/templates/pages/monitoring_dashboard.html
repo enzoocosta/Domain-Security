@@ -31,6 +31,62 @@
     </form>
   {% endcall %}
 
+  {% call render_section_card("API externa de monitoramento", "Tokens", "Tokens pessoais autenticam apenas a API externa de monitoramento e aparecem completos somente na criacao.") %}
+    {% if api_token_error %}
+      <div class="message message--error">{{ api_token_error }}</div>
+    {% endif %}
+
+    {% if new_api_token %}
+      <div class="message message--success">
+        <strong>Token criado com sucesso.</strong>
+        <p>Copie agora, porque ele nao sera exibido novamente.</p>
+        <code>{{ new_api_token }}</code>
+      </div>
+    {% endif %}
+
+    <form method="post" action="/monitoring/api-tokens" class="form-layout">
+      <label for="token_name">Nome do token</label>
+      <input id="token_name" name="token_name" type="text" maxlength="100" placeholder="Integracao monitoramento" required />
+      <button type="submit" class="button button--secondary">Gerar token</button>
+    </form>
+
+    {% if api_tokens %}
+      <div class="timeline-list top-spacing">
+        {% for token in api_tokens %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>{{ token.name }}</h3>
+                <p>{{ token.token_prefix }}...</p>
+              </div>
+              <span class="badge badge--{{ 'active' if token.is_active else 'neutral' }}">{{ 'Ativo' if token.is_active else 'Inativo' }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Criado em", token.created_at | format_datetime, "neutral") }}
+              {{ render_metric_card("Ultimo uso", token.last_used_at | format_datetime if token.last_used_at else 'ainda nao usado', "neutral") }}
+            </div>
+            <div class="action-row">
+              {% if token.is_active %}
+                <form method="post" action="/monitoring/api-tokens/{{ token.id }}/deactivate" class="inline-form">
+                  <button type="submit" class="button button--ghost button--small">Desativar</button>
+                </form>
+              {% else %}
+                <form method="post" action="/monitoring/api-tokens/{{ token.id }}/activate" class="inline-form">
+                  <button type="submit" class="button button--secondary button--small">Ativar</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state top-spacing">
+        <h3>Nenhum token criado</h3>
+        <p>Crie um token para usar a API externa autenticada de monitoramento.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
   {% call render_section_card("Alertas abertos", "Prioridade", "Mudancas de postura e alertas ativos que merecem atencao.") %}
     {% if dashboard.open_alerts %}
       <div class="recommendation-list">
@@ -68,15 +124,35 @@
                   <p>{{ item.input_label }}</p>
                 {% endif %}
               </div>
-              <span class="badge badge--{{ item.latest_severity or 'neutral' }}">{{ item.latest_severity | humanize_token if item.latest_severity else 'Agendado' }}</span>
+              <span class="badge badge--{{ item.monitoring_status }}">{{ item.monitoring_status | humanize_token }}</span>
             </div>
             <div class="metrics-grid metrics-grid--compact">
               {{ render_metric_card("Frequencia", item.monitoring_frequency, "neutral") }}
               {{ render_metric_card("Ultima execucao", item.last_run_at | format_datetime if item.last_run_at else 'ainda nao executado', "neutral") }}
               {{ render_metric_card("Proxima execucao", item.next_run_at | format_datetime, "info") }}
-              {{ render_metric_card("Status", item.last_status or 'agendado', "neutral") }}
+              {{ render_metric_card("Status do monitoramento", item.monitoring_status | humanize_token, "neutral") }}
+              {{ render_metric_card("Status da ultima execucao", item.last_status or 'agendado', "neutral") }}
               {{ render_metric_card("Ultimo score", item.latest_score if item.latest_score is not none else '-', "info") }}
               {{ render_metric_card("Alertas abertos", item.open_alert_count, "warning") }}
+            </div>
+            <div class="action-row">
+              <a href="/monitoring/domains/{{ item.id }}" class="button button--secondary button--small">Detalhes</a>
+              <a href="/reports/{{ item.normalized_domain }}.pdf" class="button button--ghost button--small">Exportar PDF</a>
+              {% if item.monitoring_status == 'active' %}
+                <form method="post" action="/monitoring/domains/{{ item.id }}/pause" class="inline-form">
+                  <input type="hidden" name="next_path" value="/monitoring" />
+                  <button type="submit" class="button button--ghost button--small">Pausar</button>
+                </form>
+              {% elif item.monitoring_status == 'paused' %}
+                <form method="post" action="/monitoring/domains/{{ item.id }}/resume" class="inline-form">
+                  <input type="hidden" name="next_path" value="/monitoring" />
+                  <button type="submit" class="button button--secondary button--small">Retomar</button>
+                </form>
+              {% endif %}
+              <form method="post" action="/monitoring/domains/{{ item.id }}/delete" class="inline-form">
+                <input type="hidden" name="next_path" value="/monitoring" />
+                <button type="submit" class="button button--danger button--small">Excluir</button>
+              </form>
             </div>
           </article>
         {% endfor %}

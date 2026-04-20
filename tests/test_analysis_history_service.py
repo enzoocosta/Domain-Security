@@ -14,6 +14,7 @@ from app.schemas.analysis import (
     DomainRegistrationResult,
     EmailTLSResult,
     Finding,
+    IPIntelligenceResult,
     MXCheckResult,
     NormalizedTarget,
     Recommendation,
@@ -95,6 +96,13 @@ def _build_response(
             expiry_status=registration_expiry_status,
             message="Registro do dominio analisado.",
             source="RDAP",
+        ),
+        ip_intelligence=IPIntelligenceResult(
+            primary_ip="93.184.216.34",
+            ip_version="ipv4",
+            is_public=True,
+            has_public_ip=True,
+            message="O IP publico principal observado para o website foi 93.184.216.34.",
         ),
         score_breakdown=ScoreBreakdown(
             dns_score=100,

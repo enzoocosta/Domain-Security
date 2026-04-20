@@ -34,6 +34,14 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    discovery_runs: Mapped[list["DiscoveryRun"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    api_tokens: Mapped[list["ApiToken"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class NotificationPreference(Base):
@@ -116,6 +124,9 @@ class MonitoredDomain(Base):
     input_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     monitoring_frequency: Mapped[str] = mapped_column(String(16), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    monitoring_status: Mapped[str] = mapped_column(String(16), nullable=False, default="active", index=True)
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, index=True)
     last_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
@@ -185,8 +196,87 @@ class AlertEvent(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)
+    email_delivery_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    email_last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     monitored_domain: Mapped[MonitoredDomain] = relationship(back_populates="alert_events")
     monitoring_run: Mapped[MonitoringRun | None] = relationship(back_populates="alert_events")
+
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_identifier", name="uq_api_tokens_identifier"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    token_identifier: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    token_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+    )
+
+    user: Mapped[User] = relationship(back_populates="api_tokens")
+
+
+class DiscoveryRun(Base):
+    __tablename__ = "discovery_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    normalized_domain: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    run_status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    asset_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    new_asset_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="discovery_runs")
+    subdomains: Mapped[list["DiscoveredSubdomain"]] = relationship(
+        back_populates="discovery_run",
+        cascade="all, delete-orphan",
+    )
+
+
+class DiscoveredSubdomain(Base):
+    __tablename__ = "discovered_subdomains"
+    __table_args__ = (
+        UniqueConstraint("discovery_run_id", "fqdn", name="uq_discovered_subdomains_run_fqdn"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    discovery_run_id: Mapped[int] = mapped_column(
+        ForeignKey("discovery_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    fqdn: Mapped[str] = mapped_column(String(320), nullable=False, index=True)
+    source: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    ip_addresses: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    is_new: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    discovery_run: Mapped[DiscoveryRun] = relationship(back_populates="subdomains")

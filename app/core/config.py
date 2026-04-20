@@ -7,6 +7,14 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 APP_DIR = BASE_DIR / "app"
 
 
+def _env_text(name: str, default: str | None = None) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    cleaned = value.strip()
+    return cleaned or default
+
+
 def _env_float(name: str, default: float) -> float:
     value = os.getenv(name)
     if value is None:
@@ -55,6 +63,31 @@ class Settings:
     monitoring_scheduler_enabled: bool
     monitoring_poll_seconds: int
     monitoring_score_drop_threshold: int
+    geoip_enabled: bool
+    geoip_provider: str
+    geoip_city_db_path: str | None
+    geoip_asn_db_path: str | None
+    geoip_isp_db_path: str | None
+    geoip_anonymous_db_path: str | None
+    geoip_account_id: str | None
+    geoip_license_key: str | None
+    geoip_host: str | None
+    geoip_timeout_seconds: float
+    email_delivery_enabled: bool
+    smtp_host: str | None
+    smtp_port: int
+    smtp_username: str | None
+    smtp_password: str | None
+    smtp_use_tls: bool
+    smtp_use_ssl: bool
+    smtp_timeout_seconds: float
+    smtp_from_email: str | None
+    smtp_from_name: str | None
+    asset_discovery_enabled: bool
+    asset_discovery_provider: str
+    amass_binary_path: str | None
+    amass_timeout_seconds: int
+    amass_passive_mode: bool
 
 
 settings = Settings(
@@ -80,4 +113,29 @@ settings = Settings(
     monitoring_scheduler_enabled=_env_bool("DSC_MONITORING_SCHEDULER_ENABLED", True),
     monitoring_poll_seconds=max(15, _env_int("DSC_MONITORING_POLL_SECONDS", 60)),
     monitoring_score_drop_threshold=max(1, _env_int("DSC_MONITORING_SCORE_DROP_THRESHOLD", 15)),
+    geoip_enabled=_env_bool("DSC_GEOIP_ENABLED", True),
+    geoip_provider=(_env_text("DSC_GEOIP_PROVIDER", "disabled") or "disabled").lower(),
+    geoip_city_db_path=_env_text("DSC_GEOIP_CITY_DB_PATH"),
+    geoip_asn_db_path=_env_text("DSC_GEOIP_ASN_DB_PATH"),
+    geoip_isp_db_path=_env_text("DSC_GEOIP_ISP_DB_PATH"),
+    geoip_anonymous_db_path=_env_text("DSC_GEOIP_ANONYMOUS_DB_PATH"),
+    geoip_account_id=_env_text("DSC_GEOIP_ACCOUNT_ID"),
+    geoip_license_key=_env_text("DSC_GEOIP_LICENSE_KEY"),
+    geoip_host=_env_text("DSC_GEOIP_HOST"),
+    geoip_timeout_seconds=_env_float("DSC_GEOIP_TIMEOUT_SECONDS", 2.5),
+    email_delivery_enabled=_env_bool("DSC_EMAIL_DELIVERY_ENABLED", False),
+    smtp_host=_env_text("DSC_SMTP_HOST"),
+    smtp_port=max(1, _env_int("DSC_SMTP_PORT", 587)),
+    smtp_username=_env_text("DSC_SMTP_USERNAME"),
+    smtp_password=_env_text("DSC_SMTP_PASSWORD"),
+    smtp_use_tls=_env_bool("DSC_SMTP_USE_TLS", True),
+    smtp_use_ssl=_env_bool("DSC_SMTP_USE_SSL", False),
+    smtp_timeout_seconds=_env_float("DSC_SMTP_TIMEOUT_SECONDS", 5.0),
+    smtp_from_email=_env_text("DSC_SMTP_FROM_EMAIL"),
+    smtp_from_name=_env_text("DSC_SMTP_FROM_NAME", "Domain Security Checker"),
+    asset_discovery_enabled=_env_bool("DSC_ASSET_DISCOVERY_ENABLED", False),
+    asset_discovery_provider=(_env_text("DSC_ASSET_DISCOVERY_PROVIDER", "disabled") or "disabled").lower(),
+    amass_binary_path=_env_text("DSC_AMASS_BINARY_PATH", "amass"),
+    amass_timeout_seconds=max(10, _env_int("DSC_AMASS_TIMEOUT_SECONDS", 300)),
+    amass_passive_mode=_env_bool("DSC_AMASS_PASSIVE_MODE", True),
 )

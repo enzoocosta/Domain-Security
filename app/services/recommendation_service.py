@@ -1,6 +1,7 @@
 from app.schemas.analysis import (
     AnalysisChecks,
     DomainRegistrationResult,
+    EmailPolicyResult,
     EmailTLSResult,
     Finding,
     OverallSeverity,
@@ -23,12 +24,16 @@ class RecommendationService:
         website_tls: WebsiteTLSResult,
         email_tls: EmailTLSResult,
         domain_registration: DomainRegistrationResult,
+        email_policies: EmailPolicyResult | None = None,
     ) -> list[Finding]:
         findings = [
             self._mx_finding(checks),
             self._spf_finding(checks),
             self._dmarc_finding(checks),
             self._dkim_finding(checks),
+            self._mta_sts_finding(email_policies),
+            self._tls_rpt_finding(email_policies),
+            self._bimi_finding(email_policies),
             self._website_tls_finding(website_tls),
             self._email_tls_finding(email_tls),
             self._domain_registration_finding(domain_registration),
@@ -43,6 +48,7 @@ class RecommendationService:
         website_tls: WebsiteTLSResult,
         email_tls: EmailTLSResult,
         domain_registration: DomainRegistrationResult,
+        email_policies: EmailPolicyResult | None = None,
     ) -> list[Recommendation]:
         recommendations: list[Recommendation] = []
 
@@ -50,6 +56,9 @@ class RecommendationService:
         recommendations.extend(self._spf_recommendations(checks))
         recommendations.extend(self._dmarc_recommendations(checks))
         recommendations.extend(self._dkim_recommendations(checks))
+        recommendations.extend(self._mta_sts_recommendations(email_policies))
+        recommendations.extend(self._tls_rpt_recommendations(email_policies))
+        recommendations.extend(self._bimi_recommendations(email_policies))
         recommendations.extend(self._website_tls_recommendations(website_tls))
         recommendations.extend(self._email_tls_recommendations(email_tls))
         recommendations.extend(self._domain_registration_recommendations(domain_registration))
@@ -345,6 +354,79 @@ class RecommendationService:
         return []
 
     @staticmethod
+    def _mta_sts_recommendations(email_policies: EmailPolicyResult | None) -> list[Recommendation]:
+        if email_policies is None:
+            return []
+        mta_sts = email_policies.mta_sts
+        if mta_sts.status == "ausente":
+            return [
+                Recommendation(
+                    category="mta_sts",
+                    priority="media",
+                    title="Publicar MTA-STS",
+                    action="Publique MTA-STS com politica HTTPS valida para reforcar o transporte entre MTAs.",
+                    rationale="Sem MTA-STS, o dominio depende apenas de STARTTLS oportunista sem politica declarada.",
+                )
+            ]
+        if mta_sts.mode == "testing":
+            return [
+                Recommendation(
+                    category="mta_sts",
+                    priority="media",
+                    title="Evoluir MTA-STS para enforce",
+                    action="Depois de validar a cobertura dos MX, avance de testing para enforce.",
+                    rationale="MTA-STS em testing ainda nao aplica enforcement real de politica.",
+                )
+            ]
+        return []
+
+    @staticmethod
+    def _tls_rpt_recommendations(email_policies: EmailPolicyResult | None) -> list[Recommendation]:
+        if email_policies is None:
+            return []
+        tls_rpt = email_policies.tls_rpt
+        if tls_rpt.status == "ausente":
+            return [
+                Recommendation(
+                    category="tls_rpt",
+                    priority="media",
+                    title="Publicar TLS-RPT",
+                    action="Adicione um registro TLS-RPT com destinos rua validos para acompanhar falhas de transporte TLS.",
+                    rationale="Sem TLS-RPT, fica mais dificil observar problemas de entrega segura entre servidores de e-mail.",
+                )
+            ]
+        if tls_rpt.status == "invalido":
+            return [
+                Recommendation(
+                    category="tls_rpt",
+                    priority="media",
+                    title="Corrigir TLS-RPT",
+                    action="Revise o formato do registro e os destinos rua para manter relatorios utilizaveis.",
+                    rationale="TLS-RPT malformado reduz a visibilidade sobre falhas de transporte TLS.",
+                )
+            ]
+        return []
+
+    @staticmethod
+    def _bimi_recommendations(email_policies: EmailPolicyResult | None) -> list[Recommendation]:
+        if email_policies is None:
+            return []
+        bimi = email_policies.bimi
+        if bimi.status != "presente":
+            return []
+        if bimi.readiness in {"nao_pronto", "desconhecido"}:
+            return [
+                Recommendation(
+                    category="bimi",
+                    priority="baixa",
+                    title="Revisar readiness de BIMI",
+                    action="Confirme enforcement de DMARC, metadados BIMI e requisitos do provedor de mailbox antes de considerar BIMI pronto.",
+                    rationale="A presenca do registro BIMI sozinha nao garante suporte efetivo no ecossistema.",
+                )
+            ]
+        return []
+
+    @staticmethod
     def _mx_finding(checks: AnalysisChecks) -> Finding:
         if checks.mx.lookup_error:
             return Finding(
@@ -628,6 +710,76 @@ class RecommendationService:
             severity="baixo",
             title="Registro de dominio consultado",
             detail=domain_registration.message,
+        )
+
+    @staticmethod
+    def _mta_sts_finding(email_policies: EmailPolicyResult | None) -> Finding | None:
+        if email_policies is None:
+            return None
+        mta_sts = email_policies.mta_sts
+        if mta_sts.status == "ausente":
+            return Finding(
+                category="mta_sts",
+                severity="medio",
+                title="MTA-STS ausente",
+                detail="O dominio nao publica politica MTA-STS para transporte entre MTAs.",
+            )
+        if mta_sts.mode == "enforce" and mta_sts.status == "presente":
+            return Finding(
+                category="mta_sts",
+                severity="baixo",
+                title="MTA-STS em enforce",
+                detail="O dominio publica MTA-STS com modo enforce.",
+            )
+        if mta_sts.status == "invalido":
+            return Finding(
+                category="mta_sts",
+                severity="medio",
+                title="MTA-STS inconsistente",
+                detail=mta_sts.message,
+            )
+        return None
+
+    @staticmethod
+    def _tls_rpt_finding(email_policies: EmailPolicyResult | None) -> Finding | None:
+        if email_policies is None:
+            return None
+        tls_rpt = email_policies.tls_rpt
+        if tls_rpt.status == "ausente":
+            return Finding(
+                category="tls_rpt",
+                severity="baixo",
+                title="TLS-RPT ausente",
+                detail="O dominio nao publica SMTP TLS Reporting para acompanhar falhas de transporte seguro.",
+            )
+        if tls_rpt.status == "invalido":
+            return Finding(
+                category="tls_rpt",
+                severity="medio",
+                title="TLS-RPT inconsistente",
+                detail=tls_rpt.message,
+            )
+        return None
+
+    @staticmethod
+    def _bimi_finding(email_policies: EmailPolicyResult | None) -> Finding | None:
+        if email_policies is None:
+            return None
+        bimi = email_policies.bimi
+        if bimi.status != "presente":
+            return None
+        if bimi.readiness == "provavel":
+            return Finding(
+                category="bimi",
+                severity="baixo",
+                title="BIMI com readiness promissora",
+                detail=bimi.message,
+            )
+        return Finding(
+            category="bimi",
+            severity="baixo",
+            title="BIMI localizado",
+            detail=bimi.message,
         )
 
     @staticmethod

@@ -15,12 +15,14 @@ from app.schemas.monitoring import (
     MonitoringDashboardResponse,
     MonitoringDomainCreateInput,
     MonitoringDomainDetailResponse,
+    MonitoringStatus,
     MonitoringRunSummary,
 )
 from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.analysis_service import DomainAnalysisService
 from app.services.monitoring_alert_service import MonitoringAlertService
 from app.services.monitoring_schedule_service import MonitoringScheduleService
+from app.services.notification_email_service import NotificationEmailService
 from app.utils.input_parser import normalize_target
 
 
@@ -35,6 +37,7 @@ class MonitoringService:
         analysis_history_service: AnalysisHistoryService | None = None,
         schedule_service: MonitoringScheduleService | None = None,
         alert_service: MonitoringAlertService | None = None,
+        notification_service: NotificationEmailService | None = None,
     ) -> None:
         self.session_factory = session_factory or SessionLocal
         self.analysis_service = analysis_service or DomainAnalysisService()
@@ -43,6 +46,7 @@ class MonitoringService:
         )
         self.schedule_service = schedule_service or MonitoringScheduleService()
         self.alert_service = alert_service or MonitoringAlertService()
+        self.notification_service = notification_service or NotificationEmailService()
 
     def create_monitored_domain(
         self,
@@ -66,6 +70,20 @@ class MonitoringService:
             user = self._require_user(db, user_id)
             existing = self._get_monitored_domain_by_domain(db, user.id, normalized_domain)
             if existing is not None:
+                if existing.monitoring_status == "deleted":
+                    current_time = self._utcnow()
+                    existing.input_label = payload.input_label
+                    existing.monitoring_frequency = payload.monitoring_frequency
+                    existing.is_active = True
+                    existing.monitoring_status = "active"
+                    existing.paused_at = None
+                    existing.deleted_at = None
+                    existing.next_run_at = current_time
+                    existing.last_status = "agendado"
+                    existing.updated_at = current_time
+                    db.commit()
+                    db.refresh(existing)
+                    return self._to_monitored_domain_summary(db, existing)
                 raise ResourceConflictError("Este dominio ja esta cadastrado no monitoramento.")
 
             monitored_domain = MonitoredDomain(
@@ -74,6 +92,9 @@ class MonitoringService:
                 input_label=payload.input_label,
                 monitoring_frequency=payload.monitoring_frequency,
                 is_active=True,
+                monitoring_status="active",
+                paused_at=None,
+                deleted_at=None,
                 next_run_at=current_time,
                 last_status="agendado",
                 created_at=current_time,
@@ -84,12 +105,26 @@ class MonitoringService:
             db.refresh(monitored_domain)
             return self._to_monitored_domain_summary(db, monitored_domain)
 
+    def list_monitored_domains(self, *, user_id: int, include_deleted: bool = False) -> list[MonitoredDomainSummary]:
+        with self.session_factory() as db:
+            user = self._require_user(db, user_id)
+            stmt = (
+                select(MonitoredDomain)
+                .where(MonitoredDomain.user_id == user.id)
+                .order_by(MonitoredDomain.created_at.desc(), MonitoredDomain.id.desc())
+            )
+            if not include_deleted:
+                stmt = stmt.where(MonitoredDomain.monitoring_status != "deleted")
+            domains = db.scalars(stmt).all()
+            return [self._to_monitored_domain_summary(db, item) for item in domains]
+
     def get_dashboard(self, *, user_id: int) -> MonitoringDashboardResponse:
         with self.session_factory() as db:
             user = self._require_user(db, user_id)
             domains = db.scalars(
                 select(MonitoredDomain)
                 .where(MonitoredDomain.user_id == user.id)
+                .where(MonitoredDomain.monitoring_status != "deleted")
                 .order_by(MonitoredDomain.created_at.desc(), MonitoredDomain.id.desc())
             ).all()
             open_alerts = db.scalars(
@@ -97,6 +132,7 @@ class MonitoringService:
                 .join(MonitoredDomain, AlertEvent.monitored_domain_id == MonitoredDomain.id)
                 .where(
                     MonitoredDomain.user_id == user.id,
+                    MonitoredDomain.monitoring_status != "deleted",
                     AlertEvent.status == "open",
                 )
                 .order_by(AlertEvent.created_at.desc(), AlertEvent.id.desc())
@@ -109,7 +145,12 @@ class MonitoringService:
 
     def get_domain_detail(self, *, user_id: int, monitored_domain_id: int) -> MonitoringDomainDetailResponse:
         with self.session_factory() as db:
-            monitored_domain = self._get_monitored_domain_for_user(db, user_id, monitored_domain_id)
+            monitored_domain = self._get_monitored_domain_for_user(
+                db,
+                user_id,
+                monitored_domain_id,
+                allow_deleted=False,
+            )
             recent_runs = db.scalars(
                 select(MonitoringRun)
                 .where(MonitoringRun.monitored_domain_id == monitored_domain.id)
@@ -129,6 +170,27 @@ class MonitoringService:
                 recent_runs=[self._to_run_summary(item) for item in recent_runs],
                 open_alerts=[self._to_alert_summary(item) for item in open_alerts],
             )
+
+    def pause_monitored_domain(self, *, user_id: int, monitored_domain_id: int) -> MonitoredDomainSummary:
+        return self._set_monitoring_status(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            target_status="paused",
+        )
+
+    def resume_monitored_domain(self, *, user_id: int, monitored_domain_id: int) -> MonitoredDomainSummary:
+        return self._set_monitoring_status(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            target_status="active",
+        )
+
+    def delete_monitored_domain(self, *, user_id: int, monitored_domain_id: int) -> MonitoredDomainSummary:
+        return self._set_monitoring_status(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            target_status="deleted",
+        )
 
     def run_due_monitors(self, *, limit: int = 10) -> int:
         now = self._utcnow()
@@ -180,12 +242,22 @@ class MonitoringService:
             monitored_domain.updated_at = run.completed_at
 
             candidates = self.alert_service.evaluate_alerts(result, previous_result=previous_result)
-            self.alert_service.synchronize_alerts(
+            synced_alerts = self.alert_service.synchronize_alerts(
                 db,
                 monitored_domain=monitored_domain,
                 monitoring_run=run,
                 candidates=candidates,
             )
+            try:
+                self.notification_service.deliver_pending_alerts(
+                    db,
+                    monitored_domain=monitored_domain,
+                    monitoring_run=run,
+                    analysis_result=result,
+                    alert_events=synced_alerts,
+                )
+            except Exception:
+                pass
         except Exception as exc:
             finished_at = self._utcnow()
             run.run_status = "error"
@@ -226,6 +298,7 @@ class MonitoringService:
             select(MonitoredDomain)
             .where(
                 MonitoredDomain.is_active.is_(True),
+                MonitoredDomain.monitoring_status == "active",
                 MonitoredDomain.next_run_at <= now,
             )
             .order_by(MonitoredDomain.next_run_at.asc(), MonitoredDomain.id.asc())
@@ -252,11 +325,61 @@ class MonitoringService:
         )
         return db.scalar(stmt)
 
-    def _get_monitored_domain_for_user(self, db: Session, user_id: int, monitored_domain_id: int) -> MonitoredDomain:
+    def _get_monitored_domain_for_user(
+        self,
+        db: Session,
+        user_id: int,
+        monitored_domain_id: int,
+        *,
+        allow_deleted: bool,
+    ) -> MonitoredDomain:
         monitored_domain = db.get(MonitoredDomain, monitored_domain_id)
         if monitored_domain is None or monitored_domain.user_id != user_id:
             raise AuthorizationError("Voce nao tem acesso a este dominio monitorado.")
+        if not allow_deleted and monitored_domain.monitoring_status == "deleted":
+            raise AuthorizationError("Este monitoramento nao esta mais disponivel.")
         return monitored_domain
+
+    def _set_monitoring_status(
+        self,
+        *,
+        user_id: int,
+        monitored_domain_id: int,
+        target_status: MonitoringStatus,
+    ) -> MonitoredDomainSummary:
+        with self.session_factory() as db:
+            monitored_domain = self._get_monitored_domain_for_user(
+                db,
+                user_id,
+                monitored_domain_id,
+                allow_deleted=True,
+            )
+            current_time = self._utcnow()
+            if target_status == "paused":
+                if monitored_domain.monitoring_status == "deleted":
+                    raise AuthorizationError("Monitoramentos excluidos nao podem ser pausados.")
+                monitored_domain.monitoring_status = "paused"
+                monitored_domain.is_active = False
+                monitored_domain.paused_at = current_time
+                monitored_domain.updated_at = current_time
+            elif target_status == "active":
+                if monitored_domain.monitoring_status == "deleted":
+                    raise AuthorizationError("Monitoramentos excluidos nao podem ser retomados.")
+                monitored_domain.monitoring_status = "active"
+                monitored_domain.is_active = True
+                monitored_domain.paused_at = None
+                monitored_domain.deleted_at = None
+                monitored_domain.next_run_at = current_time
+                monitored_domain.updated_at = current_time
+            else:
+                monitored_domain.monitoring_status = "deleted"
+                monitored_domain.is_active = False
+                monitored_domain.deleted_at = current_time
+                monitored_domain.updated_at = current_time
+
+            db.commit()
+            db.refresh(monitored_domain)
+            return self._to_monitored_domain_summary(db, monitored_domain)
 
     @staticmethod
     def _require_user(db: Session, user_id: int) -> User:
@@ -284,6 +407,9 @@ class MonitoringService:
             input_label=monitored_domain.input_label,
             monitoring_frequency=monitored_domain.monitoring_frequency,
             is_active=monitored_domain.is_active,
+            monitoring_status=monitored_domain.monitoring_status,
+            paused_at=monitored_domain.paused_at,
+            deleted_at=monitored_domain.deleted_at,
             last_run_at=monitored_domain.last_run_at,
             next_run_at=monitored_domain.next_run_at,
             last_status=monitored_domain.last_status,

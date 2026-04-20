@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card("Asset Discovery", "Modulo separado", "Descoberta de ativos inspirada em Amass, isolada do score principal do dominio.") %}
+    <div class="inline-meta">
+      <span>Execucoes salvas: {{ runs | length }}</span>
+      <span>Fluxo separado da analise publica</span>
+      <span>Resultados podem refletir cobertura parcial do attack surface</span>
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Executar discovery", "Nova execucao", "A feature persiste os achados e marca quais subdominios ainda nao tinham sido observados.") %}
+    {% if error %}
+      <div class="message message--error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/discovery/runs" class="form-layout">
+      <label for="domain">Dominio</label>
+      <input id="domain" name="domain" type="text" maxlength="320" placeholder="example.com" required />
+      <button type="submit" class="button button--primary">Executar discovery</button>
+    </form>
+  {% endcall %}
+
+  {% call render_section_card("Historico de execucoes", "Attack surface", "Cada execucao mostra status, volume de ativos e quantos achados eram realmente novos.") %}
+    {% if runs %}
+      <div class="timeline-list">
+        {% for run in runs %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3><a href="/discovery/runs/{{ run.id }}">{{ run.normalized_domain }}</a></h3>
+                <p>{{ run.started_at | format_datetime }}{% if run.completed_at %} ate {{ run.completed_at | format_datetime }}{% endif %}</p>
+              </div>
+              <span class="badge badge--{{ run.status }}">{{ run.status | humanize_token }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Provider", run.provider, "neutral") }}
+              {{ render_metric_card("Ativos", run.asset_count, "info") }}
+              {{ render_metric_card("Novos", run.new_asset_count, "success") }}
+            </div>
+            {% if run.error_message %}
+              <p class="detail-card__note">{{ run.error_message }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhuma execucao salva</h3>
+        <p>O modulo de discovery ainda nao possui execucoes registradas.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

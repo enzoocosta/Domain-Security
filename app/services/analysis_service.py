@@ -8,11 +8,13 @@ from app.core.exceptions import DNSDomainNotFoundError, DNSLookupError, DNSNoRes
 from app.schemas.analysis import (
     AnalysisChecks,
     AnalysisPerformance,
+    EmailPolicyResult,
     AnalysisResponse,
     DKIMCheckResult,
     DMARCCheckResult,
     DomainRegistrationResult,
     EmailTLSResult,
+    IPIntelligenceResult,
     MXCheckResult,
     MXRecord,
     SPFCheckResult,
@@ -23,7 +25,9 @@ from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.dns_service import DNSLookupService, MXRecordValue
 from app.services.domain_registration_service import DomainRegistrationService
 from app.services.email_auth_service import EmailAuthenticationService
+from app.services.email_policy_service import EmailPolicyService
 from app.services.email_tls_service import EmailTLSService
+from app.services.ip_intelligence_service import IPIntelligenceService
 from app.services.recommendation_service import RecommendationService
 from app.services.scoring_service import ScoringService
 from app.services.website_tls_service import WebsiteTLSService
@@ -54,7 +58,9 @@ class DomainAnalysisService:
         email_auth_service: EmailAuthenticationService | None = None,
         website_tls_service: WebsiteTLSService | None = None,
         email_tls_service: EmailTLSService | None = None,
+        email_policy_service: EmailPolicyService | None = None,
         domain_registration_service: DomainRegistrationService | None = None,
+        ip_intelligence_service: IPIntelligenceService | None = None,
         scoring_service: ScoringService | None = None,
         recommendation_service: RecommendationService | None = None,
         history_service: AnalysisHistoryService | None = None,
@@ -64,7 +70,11 @@ class DomainAnalysisService:
         self.email_auth_service = email_auth_service or EmailAuthenticationService()
         self.website_tls_service = website_tls_service or WebsiteTLSService()
         self.email_tls_service = email_tls_service or EmailTLSService()
+        self.email_policy_service = email_policy_service or EmailPolicyService(dns_service=self.dns_service)
         self.domain_registration_service = domain_registration_service or DomainRegistrationService()
+        self.ip_intelligence_service = ip_intelligence_service or IPIntelligenceService(
+            dns_service=self.dns_service
+        )
         self.scoring_service = scoring_service or ScoringService()
         self.recommendation_service = recommendation_service or RecommendationService()
         self.history_service = history_service or AnalysisHistoryService()
@@ -96,6 +106,12 @@ class DomainAnalysisService:
             dmarc_stage = dmarc_future.result()
 
             dkim_future = executor.submit(self._run_timed_stage, self._load_dkim_stage, normalized.analysis_domain)
+            email_policy_future = executor.submit(
+                self._run_timed_stage,
+                self._load_email_policies_stage,
+                normalized.analysis_domain,
+                dmarc_stage.value,
+            )
             website_tls_future = executor.submit(
                 self._run_timed_stage,
                 self._load_website_tls_stage,
@@ -106,10 +122,17 @@ class DomainAnalysisService:
                 self._load_domain_registration_stage,
                 normalized.analysis_domain,
             )
+            ip_intelligence_future = executor.submit(
+                self._run_timed_stage,
+                self._load_ip_intelligence_stage,
+                normalized.analysis_domain,
+            )
 
             dkim_stage = dkim_future.result()
+            email_policy_stage = email_policy_future.result()
             website_tls_stage = website_tls_future.result()
             rdap_stage = rdap_future.result()
+            ip_intelligence_stage = ip_intelligence_future.result()
 
         email_tls_stage = self._run_timed_stage(
             self._load_email_tls_stage,
@@ -124,10 +147,12 @@ class DomainAnalysisService:
             dkim=dkim_stage.value,
             dmarc=dmarc_stage.value,
         )
+        email_policies = email_policy_stage.value
         score_outcome = self.scoring_service.calculate(checks)
         website_tls = website_tls_stage.value
         email_tls = email_tls_stage.value
         domain_registration = rdap_stage.value
+        ip_intelligence = ip_intelligence_stage.value
 
         findings = self.recommendation_service.build_findings(
             checks,
@@ -137,14 +162,18 @@ class DomainAnalysisService:
             website_tls=website_tls,
             email_tls=email_tls,
             domain_registration=domain_registration,
+            email_policies=email_policies,
         )
         recommendations = self.recommendation_service.build_recommendations(
             checks,
             website_tls=website_tls,
             email_tls=email_tls,
             domain_registration=domain_registration,
+            email_policies=email_policies,
         )
-        notes = self._build_notes(checks, website_tls, email_tls, domain_registration)
+        notes = self._build_notes(checks, website_tls, email_tls, domain_registration, email_policies)
+        notes.extend(ip_intelligence.notes)
+        notes = self._dedupe_notes(notes)
         summary = self._build_summary(
             score=score_outcome.score,
             severity=score_outcome.severity,
@@ -162,6 +191,7 @@ class DomainAnalysisService:
             website_tls_ms=website_tls_stage.duration_ms,
             email_tls_ms=email_tls_stage.duration_ms,
             rdap_ms=rdap_stage.duration_ms,
+            ip_intelligence_ms=ip_intelligence_stage.duration_ms,
             cache_hit=False,
         )
 
@@ -174,6 +204,8 @@ class DomainAnalysisService:
             website_tls=website_tls,
             email_tls=email_tls,
             domain_registration=domain_registration,
+            email_policies=email_policies,
+            ip_intelligence=ip_intelligence,
             score_breakdown=score_outcome.breakdown,
             performance=performance,
             changes=self._initial_changes(score_outcome.score, score_outcome.severity),
@@ -211,6 +243,7 @@ class DomainAnalysisService:
             website_tls_ms=0,
             email_tls_ms=0,
             rdap_ms=0,
+            ip_intelligence_ms=0,
             cache_hit=True,
         )
         return cached_result.model_copy(
@@ -242,7 +275,7 @@ class DomainAnalysisService:
             raise
         except (DNSTimeoutError, DNSNoResponseError) as exc:
             return self._build_spf_lookup_error_result(domain, exc)
-        return self.email_auth_service.analyze_spf(domain, txt_records)
+        return self.email_auth_service.analyze_spf(domain, txt_records, dns_service=self.dns_service)
 
     def _load_dmarc_stage(self, domain: str) -> DMARCCheckResult:
         checked_name = f"_dmarc.{domain}"
@@ -288,6 +321,16 @@ class DomainAnalysisService:
                 source="RDAP",
             )
 
+    def _load_ip_intelligence_stage(self, domain: str) -> IPIntelligenceResult:
+        try:
+            return self.ip_intelligence_service.analyze(domain)
+        except Exception as exc:
+            return IPIntelligenceResult(
+                message="Nao foi possivel concluir a inteligencia de IP para o website.",
+                notes=[str(exc), "A analise principal seguiu sem o enriquecimento adicional de IP."],
+                source="DNS",
+            )
+
     def _load_email_tls_stage(
         self,
         domain: str,
@@ -317,6 +360,12 @@ class DomainAnalysisService:
                 note=self.email_tls_service.CERTIFICATE_NOTE,
                 probe_note=None,
             )
+
+    def _load_email_policies_stage(self, domain: str, dmarc_result: DMARCCheckResult) -> EmailPolicyResult:
+        try:
+            return self.email_policy_service.analyze(domain, dmarc_result=dmarc_result)
+        except Exception as exc:
+            return EmailPolicyResult()
 
     @staticmethod
     def _build_mx_result(domain: str, records: list[MXRecordValue]) -> MXCheckResult:
@@ -403,6 +452,7 @@ class DomainAnalysisService:
         website_tls: WebsiteTLSResult,
         email_tls: EmailTLSResult,
         domain_registration: DomainRegistrationResult,
+        email_policies: EmailPolicyResult,
     ) -> list[str]:
         notes = [
             "A avaliacao de DKIM continua heuristica sem headers reais de e-mail.",
@@ -429,6 +479,13 @@ class DomainAnalysisService:
             notes.append("A verificacao de HTTPS do website retornou resultado parcial ou inconclusivo.")
         if domain_registration.error:
             notes.append("A consulta de registro do dominio pode estar parcial por indisponibilidade de RDAP.")
+        if email_policies.mta_sts.warnings:
+            notes.append("MTA-STS foi localizado com inconsistencias ou cobertura parcial.")
+        if email_policies.tls_rpt.warnings:
+            notes.append("TLS-RPT foi localizado, mas requer revisao dos destinos ou do formato.")
+        if email_policies.bimi.dmarc_dependency:
+            notes.append(email_policies.bimi.dmarc_dependency)
+        notes.extend(email_policies.dnssec.notes)
 
         return self._dedupe_notes(notes)
 

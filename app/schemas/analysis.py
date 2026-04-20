@@ -11,6 +11,10 @@ CategoryName = Literal[
     "spf",
     "dkim",
     "dmarc",
+    "mta_sts",
+    "tls_rpt",
+    "bimi",
+    "dnssec",
     "consistencia",
     "tls_site",
     "tls_email",
@@ -26,6 +30,10 @@ DKIMStatus = Literal["confirmado_presente", "provavelmente_presente", "desconhec
 SPFAllMechanism = Literal["+all", "-all", "~all", "?all"]
 TransportConfidence = Literal["baixa", "media", "alta"]
 ExpiryStatus = Literal["ok", "proximo_expiracao", "expirado", "desconhecido"]
+IPVersion = Literal["ipv4", "ipv6"]
+PolicyStatus = Literal["presente", "ausente", "invalido", "desconhecido"]
+BIMIReadiness = Literal["nao_pronto", "parcial", "provavel", "desconhecido"]
+DNSSECStatus = Literal["nao_implementado", "presente", "ausente", "desconhecido"]
 
 
 class AnalysisRequest(BaseModel):
@@ -79,7 +87,11 @@ class SPFCheckResult(BaseModel):
     risks: list[str] = Field(default_factory=list)
     lookup_count: int | None = None
     lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = "nao_implementado"
+    void_lookup_count: int | None = None
+    void_lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = "nao_implementado"
+    lookup_limit_exceeded: bool = False
     lookup_candidates: list[str] = Field(default_factory=list)
+    lookup_chain: list[str] = Field(default_factory=list)
 
 
 class DMARCCheckResult(BaseModel):
@@ -169,6 +181,124 @@ class DomainRegistrationResult(BaseModel):
     error: str | None = None
 
 
+class MTASTSResult(BaseModel):
+    checked_name: str
+    status: PolicyStatus
+    dns_record: str | None = None
+    policy_url: str | None = None
+    policy_id: str | None = None
+    mode: Literal["none", "testing", "enforce"] | None = None
+    max_age: int | None = None
+    mx_patterns: list[str] = Field(default_factory=list)
+    lookup_error: str | None = None
+    fetch_error: str | None = None
+    message: str
+    warnings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class TLSRPTResult(BaseModel):
+    checked_name: str
+    status: PolicyStatus
+    records: list[str] = Field(default_factory=list)
+    effective_record: str | None = None
+    rua: list[str] = Field(default_factory=list)
+    lookup_error: str | None = None
+    message: str
+    warnings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class BIMIResult(BaseModel):
+    checked_name: str
+    selector: str = "default"
+    status: PolicyStatus
+    effective_record: str | None = None
+    location: str | None = None
+    authority: str | None = None
+    readiness: BIMIReadiness = "desconhecido"
+    dmarc_dependency: str | None = None
+    lookup_error: str | None = None
+    message: str
+    warnings: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+class DNSSECResult(BaseModel):
+    checked_name: str
+    status: DNSSECStatus
+    message: str
+    notes: list[str] = Field(default_factory=list)
+
+
+class EmailPolicyResult(BaseModel):
+    mta_sts: MTASTSResult = Field(
+        default_factory=lambda: MTASTSResult(
+            checked_name="",
+            status="desconhecido",
+            message="MTA-STS nao foi avaliado neste snapshot.",
+        )
+    )
+    tls_rpt: TLSRPTResult = Field(
+        default_factory=lambda: TLSRPTResult(
+            checked_name="",
+            status="desconhecido",
+            message="SMTP TLS Reporting nao foi avaliado neste snapshot.",
+        )
+    )
+    bimi: BIMIResult = Field(
+        default_factory=lambda: BIMIResult(
+            checked_name="",
+            status="desconhecido",
+            message="BIMI nao foi avaliado neste snapshot.",
+        )
+    )
+    dnssec: DNSSECResult = Field(
+        default_factory=lambda: DNSSECResult(
+            checked_name="",
+            status="nao_implementado",
+            message="A checagem DNSSEC ainda nao esta integrada ao fluxo principal.",
+        )
+    )
+
+
+class ResolvedIPAddress(BaseModel):
+    ip: str
+    version: IPVersion
+    source_record_type: Literal["A", "AAAA"]
+    is_public: bool
+
+
+class IPIntelligenceResult(BaseModel):
+    resolved_ips: list[ResolvedIPAddress] = Field(default_factory=list)
+    primary_ip: str | None = None
+    ip_version: IPVersion | None = None
+    is_public: bool | None = None
+    has_public_ip: bool = False
+    multiple_public_ips: bool = False
+    reverse_dns: str | None = None
+    asn: str | None = None
+    asn_org: str | None = None
+    isp: str | None = None
+    organization: str | None = None
+    provider_guess: str | None = None
+    country: str | None = None
+    region: str | None = None
+    city: str | None = None
+    timezone: str | None = None
+    anonymous_ip_flags: list[str] = Field(default_factory=list)
+    is_proxy_or_hosting_guess: bool | None = None
+    reputation_source: str | None = None
+    reputation_summary: str | None = None
+    reputation_tags: list[str] = Field(default_factory=list)
+    source: str | None = None
+    confidence: TransportConfidence | None = None
+    confidence_note: str | None = None
+    geo_approximate: bool = True
+    message: str
+    notes: list[str] = Field(default_factory=list)
+
+
 class AnalysisChecks(BaseModel):
     mx: MXCheckResult
     spf: SPFCheckResult
@@ -195,6 +325,7 @@ class AnalysisPerformance(BaseModel):
     website_tls_ms: int = Field(default=0, ge=0)
     email_tls_ms: int = Field(default=0, ge=0)
     rdap_ms: int = Field(default=0, ge=0)
+    ip_intelligence_ms: int = Field(default=0, ge=0)
     cache_hit: bool = False
 
 
@@ -223,6 +354,12 @@ class AnalysisResponse(BaseModel):
     website_tls: WebsiteTLSResult
     email_tls: EmailTLSResult
     domain_registration: DomainRegistrationResult
+    email_policies: EmailPolicyResult = Field(default_factory=EmailPolicyResult)
+    ip_intelligence: IPIntelligenceResult = Field(
+        default_factory=lambda: IPIntelligenceResult(
+            message="Inteligencia de IP nao estava disponivel neste snapshot.",
+        )
+    )
     score_breakdown: ScoreBreakdown
     performance: AnalysisPerformance
     changes: AnalysisDiffSummary

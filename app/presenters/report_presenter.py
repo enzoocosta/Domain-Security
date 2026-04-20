@@ -13,6 +13,7 @@ from app.presenters.ui_formatters import (
     field_value,
     finding_severity_badge,
     format_datetime,
+    humanize_token,
     make_field,
     make_list_block,
     overall_severity_badge,
@@ -53,7 +54,9 @@ class ReportPresenter:
             "recommendations": self._build_recommendations(result.recommendations),
             "technical_sections": [
                 self._build_email_authentication(result),
+                self._build_email_policy_section(result),
                 self._build_dns_mx_section(result),
+                self._build_ip_intelligence_section(result),
                 self._build_website_tls_section(result),
                 self._build_mail_transport_section(result),
                 self._build_domain_registration_section(result),
@@ -84,6 +87,11 @@ class ReportPresenter:
                 {
                     "href": f"/history/{result.normalized.analysis_domain}",
                     "label": "Ver historico",
+                    "style": "secondary",
+                },
+                {
+                    "href": f"/reports/{result.normalized.analysis_domain}.pdf",
+                    "label": "Exportar PDF",
                     "style": "secondary",
                 },
             ],
@@ -179,11 +187,15 @@ class ReportPresenter:
                     make_field("Mecanismo final", result.checks.spf.final_all or "Nao identificado"),
                     make_field("Postura", spf_posture_label(result.checks.spf.posture)),
                     make_field("Consultas SPF", self._lookup_status_label(result.checks.spf.lookup_count_status)),
+                    make_field("Total de lookups", result.checks.spf.lookup_count),
+                    make_field("Void lookups", result.checks.spf.void_lookup_count),
+                    make_field("Limite excedido", yes_no(result.checks.spf.lookup_limit_exceeded), skip_if_empty=not result.checks.spf.lookup_limit_exceeded),
                 ]
             ),
             "lists": compact_list_blocks(
                 [
                     make_list_block("Registros SPF", result.checks.spf.records),
+                    make_list_block("Cadeia de lookups", result.checks.spf.lookup_chain),
                     make_list_block("Riscos observados", result.checks.spf.risks),
                 ]
             ),
@@ -275,6 +287,86 @@ class ReportPresenter:
             "empty_text": "",
         }
 
+    def _build_email_policy_section(self, result: AnalysisResponse) -> dict:
+        mta_sts = result.email_policies.mta_sts
+        tls_rpt = result.email_policies.tls_rpt
+        bimi = result.email_policies.bimi
+        dnssec = result.email_policies.dnssec
+        return {
+            "id": "email-policies",
+            "title": "Mail Transport Policies",
+            "description": "Politicas complementares de transporte e readiness de marca, com separacao clara entre fato, inferencia e indisponibilidade.",
+            "cards": [
+                {
+                    "title": "MTA-STS",
+                    "summary": mta_sts.message,
+                    "badge": check_status_badge(mta_sts.status),
+                    "fields": compact_fields(
+                        [
+                            make_field("Modo", mta_sts.mode),
+                            make_field("Policy ID", mta_sts.policy_id),
+                            make_field("Max age", mta_sts.max_age),
+                            make_field("Policy URL", mta_sts.policy_url),
+                        ]
+                    ),
+                    "lists": compact_list_blocks(
+                        [
+                            make_list_block("MX patterns", mta_sts.mx_patterns),
+                            make_list_block("Warnings", mta_sts.warnings),
+                            make_list_block("Recomendacoes", mta_sts.recommendations),
+                        ]
+                    ),
+                    "note": mta_sts.fetch_error or mta_sts.lookup_error,
+                },
+                {
+                    "title": "SMTP TLS Reporting",
+                    "summary": tls_rpt.message,
+                    "badge": check_status_badge(tls_rpt.status),
+                    "fields": compact_fields(
+                        [
+                            make_field("Registro efetivo", tls_rpt.effective_record),
+                        ]
+                    ),
+                    "lists": compact_list_blocks(
+                        [
+                            make_list_block("Destinos rua", tls_rpt.rua),
+                            make_list_block("Warnings", tls_rpt.warnings),
+                            make_list_block("Recomendacoes", tls_rpt.recommendations),
+                        ]
+                    ),
+                    "note": tls_rpt.lookup_error,
+                },
+                {
+                    "title": "BIMI readiness",
+                    "summary": bimi.message,
+                    "badge": check_status_badge(bimi.status),
+                    "fields": compact_fields(
+                        [
+                            make_field("Readiness", humanize_token(bimi.readiness)),
+                            make_field("Location", bimi.location),
+                            make_field("Authority", bimi.authority),
+                        ]
+                    ),
+                    "lists": compact_list_blocks(
+                        [
+                            make_list_block("Warnings", bimi.warnings),
+                            make_list_block("Recomendacoes", bimi.recommendations),
+                        ]
+                    ),
+                    "note": bimi.dmarc_dependency or bimi.lookup_error,
+                },
+                {
+                    "title": "DNSSEC",
+                    "summary": dnssec.message,
+                    "badge": {"value": dnssec.status, "label": humanize_token(dnssec.status), "tone": "neutral"},
+                    "fields": [],
+                    "lists": compact_list_blocks([make_list_block("Notas", dnssec.notes)]),
+                    "note": None,
+                },
+            ],
+            "empty_text": "",
+        }
+
     def _build_website_tls_section(self, result: AnalysisResponse) -> dict:
         badge = self._tls_badge(result.website_tls.ssl_active, result.website_tls.certificate_valid)
         note_parts = []
@@ -309,6 +401,58 @@ class ReportPresenter:
                         ]
                     ),
                     "lists": compact_list_blocks([make_list_block("SAN", result.website_tls.san)]),
+                    "note": " ".join(note_parts).strip() or None,
+                }
+            ],
+            "empty_text": "",
+        }
+
+    def _build_ip_intelligence_section(self, result: AnalysisResponse) -> dict:
+        resolved_labels = [
+            f"{item.ip} ({item.version.upper()} / {item.source_record_type} / {'publico' if item.is_public else 'nao publico'})"
+            for item in result.ip_intelligence.resolved_ips
+        ]
+        note_parts = list(result.ip_intelligence.notes)
+        if result.ip_intelligence.reputation_summary:
+            note_parts.append(result.ip_intelligence.reputation_summary)
+        if result.ip_intelligence.confidence_note:
+            note_parts.append(result.ip_intelligence.confidence_note)
+        return {
+            "id": "ip-intelligence",
+            "title": "IP Intelligence",
+            "description": "Contexto tecnico e geografico aproximado do IP observado para o website, sem assumir que ele representa toda a infraestrutura real.",
+            "cards": [
+                {
+                    "title": "IP resolvido para o website",
+                    "summary": result.ip_intelligence.message,
+                    "badge": self._ip_badge(result.ip_intelligence.has_public_ip),
+                    "fields": compact_fields(
+                        [
+                            make_field("IP principal", result.ip_intelligence.primary_ip),
+                            make_field("Versao", result.ip_intelligence.ip_version),
+                            make_field("IP publico", yes_no(result.ip_intelligence.is_public)),
+                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns),
+                            make_field("ASN", result.ip_intelligence.asn),
+                            make_field("ASN org", result.ip_intelligence.asn_org),
+                            make_field("ISP", result.ip_intelligence.isp),
+                            make_field("Organizacao", result.ip_intelligence.organization),
+                            make_field("Provider guess", result.ip_intelligence.provider_guess),
+                            make_field("Pais", result.ip_intelligence.country),
+                            make_field("Regiao", result.ip_intelligence.region),
+                            make_field("Cidade", result.ip_intelligence.city),
+                            make_field("Timezone", result.ip_intelligence.timezone),
+                            make_field("Proxy ou hosting guess", yes_no(result.ip_intelligence.is_proxy_or_hosting_guess)),
+                            make_field("Fonte", result.ip_intelligence.source),
+                            make_field("Confianca", confidence_label(result.ip_intelligence.confidence)),
+                        ]
+                    ),
+                    "lists": compact_list_blocks(
+                        [
+                            make_list_block("IPs resolvidos", resolved_labels),
+                            make_list_block("Flags de anonimidade", result.ip_intelligence.anonymous_ip_flags),
+                            make_list_block("Tags de reputacao", result.ip_intelligence.reputation_tags),
+                        ]
+                    ),
                     "note": " ".join(note_parts).strip() or None,
                 }
             ],
@@ -434,6 +578,7 @@ class ReportPresenter:
                         make_field("TLS do website", f"{result.performance.website_tls_ms} ms", skip_if_empty=False),
                         make_field("TLS de e-mail", f"{result.performance.email_tls_ms} ms", skip_if_empty=False),
                         make_field("RDAP", f"{result.performance.rdap_ms} ms", skip_if_empty=False),
+                        make_field("IP intelligence", f"{result.performance.ip_intelligence_ms} ms", skip_if_empty=False),
                         make_field("Cache hit", result.performance.cache_hit, skip_if_empty=False),
                     ]
                 ),
@@ -527,3 +672,9 @@ class ReportPresenter:
         if rdap_available:
             return {"value": "presente", "label": "RDAP disponivel", "tone": "success"}
         return {"value": "ausente", "label": "RDAP indisponivel", "tone": "warning"}
+
+    @staticmethod
+    def _ip_badge(has_public_ip: bool) -> dict[str, str]:
+        if has_public_ip:
+            return {"value": "presente", "label": "IP publico observado", "tone": "success"}
+        return {"value": "desconhecido", "label": "Sem IP publico util", "tone": "warning"}

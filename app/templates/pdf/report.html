@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Domain Security Checker - {{ report.executive.domain }}</title>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__brand">Domain Security Checker</div>
+      <div class="hero__content">
+        <div>
+          <p class="eyebrow">Relatorio executivo e tecnico</p>
+          <h1>{{ report.executive.domain }}</h1>
+          <p class="hero__summary">{{ report.executive.summary }}</p>
+          <p class="hero__meta">
+            Tipo: {{ report.executive.target_type }} |
+            Emitido em: {{ report.executive.analyzed_at }}
+          </p>
+        </div>
+        <aside class="score-card">
+          <span class="score-card__label">Score</span>
+          <strong>{{ report.executive.score }}/100</strong>
+          <span class="pill pill--severity">{{ report.executive.severity }}</span>
+        </aside>
+      </div>
+      <p class="overview">{{ report.executive.overview }}</p>
+    </header>
+
+    <section class="section">
+      <div class="section__header">
+        <p class="eyebrow">Visao executiva</p>
+        <h2>Findings principais</h2>
+      </div>
+      {% if report.findings %}
+        <div class="card-grid">
+          {% for item in report.findings %}
+            <article class="info-card">
+              <div class="info-card__header">
+                <h3>{{ item.title }}</h3>
+                <span class="pill pill--danger">{{ item.severity }}</span>
+              </div>
+              <p>{{ item.detail }}</p>
+              <p class="muted">Categoria: {{ item.category }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Nenhum finding prioritario foi destacado neste snapshot.</p>
+      {% endif %}
+    </section>
+
+    <section class="section">
+      <div class="section__header">
+        <p class="eyebrow">Plano de acao</p>
+        <h2>Recomendacoes priorizadas</h2>
+      </div>
+      {% if report.recommendations %}
+        <div class="stack">
+          {% for item in report.recommendations %}
+            <article class="action-card">
+              <div class="action-card__header">
+                <h3>{{ item.title }}</h3>
+                <span class="pill pill--warning">{{ item.priority }}</span>
+              </div>
+              <p><strong>Acao:</strong> {{ item.action }}</p>
+              <p>{{ item.rationale }}</p>
+              <p class="muted">Categoria: {{ item.category }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">Nao ha recomendacoes adicionais para destacar neste snapshot.</p>
+      {% endif %}
+    </section>
+
+    {% for section in report.sections %}
+      <section class="section">
+        <div class="section__header">
+          <p class="eyebrow">Resumo tecnico</p>
+          <h2>{{ section.title }}</h2>
+          <p>{{ section.summary }}</p>
+        </div>
+
+        {% if section["items"] %}
+          <div class="fact-grid">
+            {% for item in section["items"] %}
+              <article class="fact-card">
+                <span class="fact-card__label">{{ item.label }}</span>
+                <strong>{{ item.value }}</strong>
+                {% if item.kind == "inference" %}
+                  <span class="fact-card__kind">Inferencia</span>
+                {% elif item.kind == "approximate" %}
+                  <span class="fact-card__kind">Aproximado</span>
+                {% endif %}
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if section["lists"] %}
+          <div class="list-grid">
+            {% for list_block in section["lists"] %}
+              <article class="list-card">
+                <h3>{{ list_block.title }}</h3>
+                <ul>
+                  {% for item in list_block["items"] %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              </article>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if section["note"] %}
+          <p class="section-note">{{ section["note"] }}</p>
+        {% endif %}
+      </section>
+    {% endfor %}
+
+    {% if report.notes %}
+      <section class="section">
+        <div class="section__header">
+          <p class="eyebrow">Leitura cuidadosa</p>
+          <h2>Notas de interpretacao</h2>
+        </div>
+        <div class="list-card">
+          <ul>
+            {% for note in report.notes %}
+              <li>{{ note }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+    {% endif %}
+  </body>
+</html>

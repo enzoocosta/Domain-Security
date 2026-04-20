@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from ipaddress import ip_address
 
 from dns.exception import DNSException
+from dns.reversename import from_address
 from dns.resolver import LifetimeTimeout, NXDOMAIN, NoNameservers, Resolver
 
 from app.core.config import settings
@@ -11,6 +13,14 @@ from app.core.exceptions import DNSDomainNotFoundError, DNSNoResponseError, DNST
 class MXRecordValue:
     preference: int
     exchange: str
+
+
+@dataclass(frozen=True)
+class IPAddressValue:
+    address: str
+    version: str
+    source_record_type: str
+    is_public: bool
 
 
 class DNSLookupService:
@@ -41,6 +51,35 @@ class DNSLookupService:
         if answer is None or answer.rrset is None:
             return []
         return [self._txt_record_to_text(record) for record in answer]
+
+    def get_ip_records(self, domain: str) -> list[IPAddressValue]:
+        records: list[IPAddressValue] = []
+        for record_type, version in (("A", "ipv4"), ("AAAA", "ipv6")):
+            answer = self._resolve(domain, record_type)
+            if answer is None or answer.rrset is None:
+                continue
+            for record in answer:
+                address = record.to_text()
+                parsed = ip_address(address)
+                records.append(
+                    IPAddressValue(
+                        address=address,
+                        version=version,
+                        source_record_type=record_type,
+                        is_public=parsed.is_global,
+                    )
+                )
+        return records
+
+    def get_reverse_dns(self, address: str) -> str | None:
+        answer = self._resolve(str(from_address(address)), "PTR", missing_on_nxdomain=True)
+        if answer is None or answer.rrset is None:
+            return None
+        for record in answer:
+            value = record.to_text().rstrip(".")
+            if value:
+                return value
+        return None
 
     def _resolve(self, name: str, record_type: str, *, missing_on_nxdomain: bool = False):
         try:

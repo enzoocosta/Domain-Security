@@ -1,5 +1,13 @@
-from app.services.dns_service import MXRecordValue
-from app.schemas.analysis import AnalysisResponse, DomainRegistrationResult, EmailTLSResult, WebsiteTLSResult
+from pathlib import Path
+
+from app.services.dns_service import IPAddressValue, MXRecordValue
+from app.schemas.analysis import (
+    AnalysisResponse,
+    DomainRegistrationResult,
+    EmailTLSResult,
+    IPIntelligenceResult,
+    WebsiteTLSResult,
+)
 from app.schemas.history import AnalysisDiffSummary, DomainHistoryResponse
 
 
@@ -8,16 +16,21 @@ class StubDNSService:
         self,
         *,
         mx_records: list[MXRecordValue] | None = None,
+        ip_records: list[IPAddressValue] | None = None,
+        reverse_dns: str | None = None,
         txt_records: dict[str, list[str]] | None = None,
         mx_exception: Exception | None = None,
         txt_exceptions: dict[str, Exception] | None = None,
     ) -> None:
         self.mx_records = mx_records or []
+        self.ip_records = ip_records or []
+        self.reverse_dns = reverse_dns
         self.txt_records = txt_records or {}
         self.mx_exception = mx_exception
         self.txt_exceptions = txt_exceptions or {}
         self.mx_call_count = 0
         self.txt_call_count = 0
+        self.ip_call_count = 0
 
     def get_mx_records(self, domain: str) -> list[MXRecordValue]:
         self.mx_call_count += 1
@@ -31,6 +44,15 @@ class StubDNSService:
         if exception is not None:
             raise exception
         return list(self.txt_records.get(name, []))
+
+    def get_ip_records(self, domain: str) -> list[IPAddressValue]:
+        self.ip_call_count += 1
+        if self.mx_exception is not None:
+            raise self.mx_exception
+        return list(self.ip_records)
+
+    def get_reverse_dns(self, address: str) -> str | None:
+        return self.reverse_dns
 
 
 class StubWebsiteTLSService:
@@ -88,3 +110,32 @@ class StubAnalysisHistoryService:
         if self.history_response is not None:
             return self.history_response
         return DomainHistoryResponse(domain=domain, items=[])
+
+    def get_latest_result_for_domain(self, domain: str) -> AnalysisResponse | None:
+        return None
+
+
+class StubIPIntelligenceService:
+    def __init__(self, result: IPIntelligenceResult) -> None:
+        self.result = result
+        self.call_count = 0
+
+    def analyze(self, domain: str) -> IPIntelligenceResult:
+        self.call_count += 1
+        return self.result
+
+
+class FakePDFRenderer:
+    def __init__(self, content: bytes | None = None) -> None:
+        self.content = content or b"%PDF-fake"
+        self.calls: list[dict] = []
+
+    def render(self, *, html: str, base_url: str, css_paths: list[Path]) -> bytes:
+        self.calls.append(
+            {
+                "html": html,
+                "base_url": base_url,
+                "css_paths": [str(path) for path in css_paths],
+            }
+        )
+        return self.content

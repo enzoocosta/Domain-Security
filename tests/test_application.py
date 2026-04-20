@@ -2,20 +2,46 @@ from datetime import UTC, datetime, timedelta
 import inspect
 
 from app.api.routes import analysis as analysis_route
+from app.api.routes import asset_discovery_web as asset_discovery_web_route
+from app.api.routes import discovery as discovery_route
 from app.api.routes import history as history_route
+from app.api.routes import report_web as report_web_route
 from app.api.routes import web as web_route
 from app.core.exceptions import DNSDomainNotFoundError
-from app.schemas.analysis import DomainRegistrationResult, EmailTLSMXResult, EmailTLSResult, WebsiteTLSResult
+from app.schemas.analysis import (
+    DomainRegistrationResult,
+    EmailTLSMXResult,
+    EmailTLSResult,
+    IPIntelligenceResult,
+    ResolvedIPAddress,
+    WebsiteTLSResult,
+)
 from app.schemas.history import DomainHistoryResponse, HistoryItem
 from app.services.analysis_service import DomainAnalysisService
+from app.services.asset_discovery_service import AssetDiscoveryService
+from app.services.report_export_service import ReportExportService
 from app.services.dns_service import MXRecordValue
 from tests.fakes import (
+    FakePDFRenderer,
     StubAnalysisHistoryService,
     StubDNSService,
     StubDomainRegistrationService,
     StubEmailTLSService,
+    StubIPIntelligenceService,
     StubWebsiteTLSService,
 )
+
+
+class StubAmassRunner:
+    provider_name = "amass"
+
+    def __init__(self, result) -> None:
+        self.result = result
+        self.calls: list[str] = []
+
+    def discover(self, domain: str):
+        self.calls.append(domain)
+        return self.result
 
 
 def _website_tls_result() -> WebsiteTLSResult:
@@ -78,6 +104,34 @@ def _registration_result() -> DomainRegistrationResult:
     )
 
 
+def _ip_intelligence_result() -> IPIntelligenceResult:
+    return IPIntelligenceResult(
+        resolved_ips=[
+            ResolvedIPAddress(
+                ip="93.184.216.34",
+                version="ipv4",
+                source_record_type="A",
+                is_public=True,
+            )
+        ],
+        primary_ip="93.184.216.34",
+        ip_version="ipv4",
+        is_public=True,
+        has_public_ip=True,
+        reverse_dns="edge.example.net",
+        organization="Example Edge",
+        provider_guess="Example Edge",
+        country="US",
+        region="California",
+        city="Los Angeles",
+        timezone="America/Los_Angeles",
+        confidence="media",
+        message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
+        notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
+        source="ipinfo",
+    )
+
+
 def _install_stub_service(
     monkeypatch,
     dns_service: StubDNSService,
@@ -86,17 +140,47 @@ def _install_stub_service(
     history_response: DomainHistoryResponse | None = None,
 ) -> None:
     history_service = StubAnalysisHistoryService(history_response=history_response)
+    pdf_renderer = FakePDFRenderer(content=b"%PDF-fake-report")
     service = DomainAnalysisService(
         dns_service=dns_service,
         website_tls_service=StubWebsiteTLSService(_website_tls_result()),
         email_tls_service=StubEmailTLSService(email_tls_result or _email_tls_result()),
         domain_registration_service=StubDomainRegistrationService(_registration_result()),
+        ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_result()),
         history_service=history_service,
     )
     monkeypatch.setattr(analysis_route, "service", service)
     monkeypatch.setattr(web_route, "service", service)
     monkeypatch.setattr(web_route, "history_service", history_service)
     monkeypatch.setattr(history_route, "service", history_service)
+    monkeypatch.setattr(
+        report_web_route,
+        "service",
+        ReportExportService(
+            history_service=history_service,
+            analysis_service=service,
+            renderer=pdf_renderer,
+        ),
+    )
+
+
+def _install_stub_discovery_service(monkeypatch) -> StubAmassRunner:
+    from app.services.providers.amass_runner import AssetDiscoveryResult, DiscoveredAssetRecord
+
+    runner = StubAmassRunner(
+        AssetDiscoveryResult(
+            provider="amass",
+            status="completed",
+            assets=[
+                DiscoveredAssetRecord(fqdn="api.example.com", source="amass"),
+                DiscoveredAssetRecord(fqdn="mail.example.com", source="amass"),
+            ],
+        )
+    )
+    service = AssetDiscoveryService(runner=runner)
+    monkeypatch.setattr(asset_discovery_web_route, "discovery_service", service)
+    monkeypatch.setattr(discovery_route, "service", service)
+    return runner
 
 
 def test_healthcheck(client):
@@ -140,6 +224,8 @@ def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, mon
     assert payload["email_tls"]["has_email_tls_data"] is True
     assert payload["email_tls"]["mx_results"][0]["starttls_supported"] is True
     assert payload["domain_registration"]["rdap_available"] is True
+    assert payload["email_policies"]["dnssec"]["status"] == "nao_implementado"
+    assert payload["ip_intelligence"]["primary_ip"] == "93.184.216.34"
     assert payload["changes"]["has_previous_snapshot"] is False
     assert payload["performance"]["cache_hit"] is False
     assert payload["performance"]["total_ms"] >= 0
@@ -181,6 +267,8 @@ def test_form_submission_renders_new_sections(client, monkeypatch):
     assert "TLS do website" in response.text
     assert "Seguranca de transporte de e-mail" in response.text
     assert "Registro do dominio" in response.text
+    assert "Mail Transport Policies" in response.text
+    assert "IP Intelligence" in response.text
     assert "Detalhamento do score" in response.text
     assert "Mudancas desde a ultima analise" in response.text
     assert "Recomendacoes" in response.text
@@ -279,6 +367,26 @@ def test_history_page_renders_items(client, monkeypatch):
     assert "Resumo da analise salva." in response.text
 
 
+def test_report_pdf_export_returns_pdf(client, monkeypatch):
+    _install_stub_service(
+        monkeypatch,
+        StubDNSService(
+            mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
+            txt_records={
+                "example.com": ["v=spf1 include:_spf.example.net -all"],
+                "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:dmarc@example.com"],
+                "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIIB"],
+            },
+        ),
+    )
+
+    response = client.get("/reports/example.com.pdf")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/pdf")
+    assert response.content.startswith(b"%PDF-fake")
+
+
 def test_monitoring_route_requires_authentication(client):
     response = client.get("/monitoring", follow_redirects=False)
 
@@ -323,6 +431,67 @@ def test_register_login_and_create_monitored_domain(client):
 
     assert login_response.status_code == 200
     assert "Monitoramento autenticado" in login_response.text
+
+
+def test_external_monitoring_api_accepts_valid_token(client):
+    from app.services.api_token_service import ApiTokenService
+    from app.services.auth_service import AuthenticationService
+
+    auth_service = AuthenticationService()
+    token_service = ApiTokenService()
+    user = auth_service.register_user("api-owner@example.com", "supersecret")
+    token = token_service.create_token(user_id=user.id, name="api-monitoring")
+
+    response = client.post(
+        "/api/external/v1/monitoring",
+        json={
+            "domain": "example.com",
+            "monitoring_frequency": "daily",
+            "input_label": "API",
+        },
+        headers={"Authorization": f"Bearer {token.token}"},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["item"]["normalized_domain"] == "example.com"
+    assert payload["item"]["monitoring_status"] == "active"
+
+
+def test_external_monitoring_api_rejects_invalid_token(client):
+    response = client.get(
+        "/api/external/v1/monitoring",
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token invalido."
+
+
+def test_asset_discovery_web_and_api_routes_work_for_authenticated_user(client, monkeypatch):
+    runner = _install_stub_discovery_service(monkeypatch)
+
+    client.post(
+        "/auth/register",
+        data={"email": "discovery-owner@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    web_response = client.post(
+        "/discovery/runs",
+        data={"domain": "example.com"},
+        follow_redirects=True,
+    )
+
+    assert web_response.status_code == 200
+    assert "api.example.com" in web_response.text
+    assert "mail.example.com" in web_response.text
+
+    api_response = client.get("/api/v1/discovery")
+
+    assert api_response.status_code == 200
+    assert api_response.json()[0]["normalized_domain"] == "example.com"
+    assert runner.calls == ["example.com"]
 
 
 def test_web_and_api_analysis_routes_are_sync():

@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 
 MonitoringFrequency = Literal["daily", "weekly", "monthly"]
 MonitoringRunStatus = Literal["success", "partial", "error"]
+MonitoringStatus = Literal["active", "paused", "deleted"]
 AlertSeverity = Literal["alta", "media", "baixa"]
 AlertStatus = Literal["open", "acknowledged", "resolved"]
 
@@ -59,6 +60,9 @@ class MonitoredDomainSummary(BaseModel):
     input_label: str | None = None
     monitoring_frequency: MonitoringFrequency
     is_active: bool
+    monitoring_status: MonitoringStatus
+    paused_at: datetime | None = None
+    deleted_at: datetime | None = None
     last_run_at: datetime | None = None
     next_run_at: datetime
     last_status: str | None = None

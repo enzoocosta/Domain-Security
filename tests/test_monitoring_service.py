@@ -16,6 +16,7 @@ from app.schemas.analysis import (
     DMARCCheckResult,
     DomainRegistrationResult,
     EmailTLSResult,
+    IPIntelligenceResult,
     MXCheckResult,
     NormalizedTarget,
     SPFCheckResult,
@@ -24,7 +25,9 @@ from app.schemas.analysis import (
 )
 from app.schemas.history import AnalysisDiffSummary
 from app.services.auth_service import AuthenticationService
+from app.services.email_delivery_service import EmailDeliveryService
 from app.services.monitoring_schedule_service import MonitoringScheduleService
+from app.services.notification_email_service import NotificationEmailService
 from app.services.monitoring_service import MonitoringService
 
 
@@ -105,6 +108,13 @@ def _build_response(
             message="Registro analisado.",
             source="RDAP",
         ),
+        ip_intelligence=IPIntelligenceResult(
+            primary_ip="93.184.216.34",
+            ip_version="ipv4",
+            is_public=True,
+            has_public_ip=True,
+            message="O IP publico principal observado para o website foi 93.184.216.34.",
+        ),
         score_breakdown=ScoreBreakdown(
             dns_score=100,
             mx_score=100,
@@ -180,6 +190,20 @@ def _build_services():
     return TestingSessionLocal, auth_service
 
 
+class FailingEmailSender:
+    provider_name = "smtp"
+
+    def send(self, message):
+        from app.services.email_delivery_service import EmailSendResult
+
+        return EmailSendResult(
+            attempted=True,
+            delivered=False,
+            provider=self.provider_name,
+            error="SMTP offline",
+        )
+
+
 def test_monitoring_schedule_calculates_next_runs():
     service = MonitoringScheduleService()
     base = datetime(2026, 4, 17, 12, 0, tzinfo=UTC)
@@ -207,6 +231,7 @@ def test_monitoring_service_creates_monitored_domain():
     assert created.normalized_domain == "example.com"
     assert created.monitoring_frequency == "weekly"
     assert created.open_alert_count == 0
+    assert created.monitoring_status == "active"
 
 
 def test_monitoring_service_runs_due_domain_and_generates_base_alerts():
@@ -286,3 +311,74 @@ def test_monitoring_service_generates_diff_based_alerts():
     assert "score_drop" in alert_types
     assert "severity_worsened" in alert_types
     assert "critical_email_auth_finding" in alert_types
+
+
+def test_monitoring_service_can_pause_resume_and_delete_domains():
+    session_factory, auth_service = _build_services()
+    user = auth_service.register_user("owner@example.com", "supersecret")
+    service = MonitoringService(session_factory=session_factory)
+    created = service.create_monitored_domain(user_id=user.id, domain="example.com", monitoring_frequency="daily")
+
+    paused = service.pause_monitored_domain(user_id=user.id, monitored_domain_id=created.id)
+    resumed = service.resume_monitored_domain(user_id=user.id, monitored_domain_id=created.id)
+    deleted = service.delete_monitored_domain(user_id=user.id, monitored_domain_id=created.id)
+
+    assert paused.monitoring_status == "paused"
+    assert paused.is_active is False
+    assert resumed.monitoring_status == "active"
+    assert resumed.is_active is True
+    assert deleted.monitoring_status == "deleted"
+    assert deleted.is_active is False
+
+
+def test_scheduler_ignores_paused_monitoring():
+    session_factory, auth_service = _build_services()
+    user = auth_service.register_user("owner@example.com", "supersecret")
+    analysis_service = StubMonitoringAnalysisService([_build_response(domain="example.com", score=90, severity="bom")])
+    service = MonitoringService(
+        session_factory=session_factory,
+        analysis_service=analysis_service,
+        analysis_history_service=StubMonitoringHistoryService(),
+    )
+    created = service.create_monitored_domain(user_id=user.id, domain="example.com", monitoring_frequency="daily")
+    service.pause_monitored_domain(user_id=user.id, monitored_domain_id=created.id)
+
+    processed = service.run_due_monitors()
+
+    assert processed == 0
+    assert analysis_service.calls == []
+
+
+def test_monitoring_email_alert_failure_does_not_break_execution():
+    session_factory, auth_service = _build_services()
+    user = auth_service.register_user("owner@example.com", "supersecret")
+    analysis_service = StubMonitoringAnalysisService(
+        [
+            _build_response(
+                domain="example.com",
+                score=40,
+                severity="alto",
+                spf_status="ausente",
+                dmarc_status="ausente",
+                dmarc_policy=None,
+            )
+        ]
+    )
+    notification_service = NotificationEmailService(
+        email_delivery_service=EmailDeliveryService(sender=FailingEmailSender())
+    )
+    service = MonitoringService(
+        session_factory=session_factory,
+        analysis_service=analysis_service,
+        analysis_history_service=StubMonitoringHistoryService(),
+        notification_service=notification_service,
+    )
+    service.create_monitored_domain(user_id=user.id, domain="example.com", monitoring_frequency="daily")
+
+    processed = service.run_due_monitors()
+
+    assert processed == 1
+    with session_factory() as db:
+        alerts = db.scalars(select(AlertEvent).where(AlertEvent.status == "open")).all()
+    assert alerts
+    assert all(alert.email_delivery_status == "failed" for alert in alerts)

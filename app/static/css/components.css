@@ -71,6 +71,21 @@
   color: var(--danger);
 }
 
+.message--success {
+  background: var(--success-soft);
+  border-color: rgba(21, 128, 61, 0.14);
+  color: var(--success);
+}
+
+.message code {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: rgba(11, 31, 58, 0.08);
+  color: var(--primary);
+}
+
 .analysis-form,
 .form-layout {
   display: grid;
@@ -117,13 +132,15 @@
 .badge--excelente,
 .badge--presente,
 .badge--ok,
-.badge--resolved {
+.badge--resolved,
+.badge--completed {
   background: var(--success-soft);
   color: var(--success);
 }
 
 .badge--info,
-.badge--bom {
+.badge--bom,
+.badge--running {
   background: var(--info-soft);
   color: var(--info);
 }
@@ -144,14 +161,32 @@
 .badge--alta,
 .badge--invalido,
 .badge--error,
-.badge--open {
+.badge--open,
+.badge--failed {
   background: var(--danger-soft);
   color: var(--danger);
 }
 
 .badge--neutral,
 .badge--desconhecido,
-.badge--baixa {
+.badge--baixa,
+.badge--queued,
+.badge--unavailable {
+  background: var(--neutral-soft);
+  color: var(--text-soft);
+}
+
+.badge--active {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.badge--paused {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.badge--deleted {
   background: var(--neutral-soft);
   color: var(--text-soft);
 }
@@ -301,6 +336,21 @@
   margin-bottom: 0.35rem;
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.top-spacing {
+  margin-top: 1rem;
+}
+
+.section-actions-bottom {
+  margin-bottom: 1rem;
+}
+
 @media (max-width: 640px) {
   .finding-card__header,
   .recommendation-item__header,
@@ -308,5 +358,10 @@
   .timeline-card__header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .action-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

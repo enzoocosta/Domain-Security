@@ -1,147 +1,149 @@
 # Domain Security Checker
 
-Aplicação web para análise de postura de segurança de domínio, autenticação de e-mail e segurança de transporte.
+Aplicacao web para analise de postura de seguranca de dominio, autenticacao de e-mail, transporte seguro, monitoramento, historico, asset discovery e relatorios.
 
-## Status do projeto
+## Stack
 
-🚧 **Em desenvolvimento**
+- Python
+- FastAPI
+- Pydantic v2
+- SQLAlchemy
+- Jinja2
+- SQLite
+- dnspython
+- Pytest
+- WeasyPrint
+- GeoIP2 / MaxMind
 
-O projeto já passou da fase inicial de estruturação e atualmente possui um MVP funcional com análise real de domínio, interface web operante, score de segurança, severidade, findings e recomendações.
+## Principios mantidos
 
-> Esta ainda não é a versão final do projeto.
+- Regras de negocio continuam em `app/services`
+- Rotas permanecem finas
+- Schemas publicos seguem normalizados e sem vazar estruturas internas de bibliotecas de referencia
+- DKIM continua heuristico sem headers reais
+- `provider_guess` continua inferencia
+- TLS de e-mail continua deixando claro que o certificado costuma ser do servidor MX
+- RDAP, GeoIP e discovery continuam podendo retornar dados parciais
+- Asset discovery continua separado do score principal e do request publico `/analyze`
 
----
+## Novidades desta iteracao
 
-## Sobre o projeto
+- Exportacao PDF a partir de HTML/CSS com presenter e template dedicados
+- Inteligencia de IP via provider MaxMind/GeoIP2 com import tardio e fallback controlado
+- Aprofundamento de politicas de e-mail:
+  - contagem SPF com recursion e void lookups
+  - MTA-STS
+  - SMTP TLS Reporting
+  - BIMI readiness
+  - base de schema para DNSSEC futuro
+- Modulo separado de Asset Discovery inspirado em Amass
+- Endpoints e telas dedicados para discovery
 
-O **Domain Security Checker** foi criado com o objetivo de transformar verificações técnicas de segurança em um diagnóstico mais claro, útil e acessível.
-
-Muitas informações importantes sobre a segurança de um domínio ficam distribuídas entre diferentes camadas, como:
-
-- configuração DNS
-- autenticação de e-mail
-- certificados TLS/SSL
-- segurança de transporte de e-mail
-- ciclo de vida do domínio
-
-Para quem não trabalha diariamente com infraestrutura ou segurança, interpretar esses dados pode ser difícil.  
-A proposta deste projeto é permitir que o usuário informe um **domínio ou e-mail** e receba uma análise que mostre de forma simples:
-
-- o que está configurado corretamente
-- o que está ausente
-- o que representa risco
-- o que deve ser corrigido primeiro
-
-Além de resolver um problema real, este projeto também está sendo desenvolvido como forma de aprofundar conhecimentos em:
-
-- segurança da informação
-- redes e DNS
-- autenticação de e-mail
-- TLS/SSL
-- desenvolvimento backend com Python
-- arquitetura de sistemas
-- construção de produtos com foco em clareza técnica
-
----
-
-## Funcionalidades já implementadas
-
-### Arquitetura e base do sistema
-- Estrutura em camadas (`api`, `core`, `schemas`, `services`, `utils`, `db`)
-- Aplicação FastAPI com rotas web e API
-- Interface HTML com Jinja2
-- Testes automatizados iniciais com Pytest
-- Base do projeto organizada para crescimento futuro
-
-### Entrada e normalização
-- Suporte para entrada de domínio ou e-mail
-- Extração e normalização do domínio analisável
-- Tratamento básico de entradas inválidas
-
-### Análise de domínio e autenticação de e-mail
-- Consulta DNS
-- Verificação de registros MX
-- Verificação de SPF
-- Verificação de DMARC
-- Estrutura com abordagem honesta para DKIM
-
-### Inteligência do diagnóstico
-- Motor de score com categorias ponderadas
-- Classificação de severidade
-- Findings estruturados
-- Recomendações priorizadas
-
-### TLS / SSL
-- Verificação de TLS/SSL do website
-- Leitura de certificado apresentado no site
-- Identificação de emissor e validade do certificado
-- Tentativa de análise de segurança de transporte de e-mail via MX
-- Exibição condicional da seção de segurança de e-mail apenas quando houver dados úteis reais
-
-### Registro do domínio
-- Consulta de informações de registro do domínio quando disponíveis
-- Data de criação
-- Data de expiração
-- Prazo restante para expiração
-- Status e registrador quando disponíveis
-
-### Interface
-- Página inicial com formulário de análise
-- Página de resultado funcional
-- Exibição de score e severidade
-- Exibição de findings e recomendações
-- Layout inicial voltado para leitura clara do diagnóstico
-
----
-
-## Capacidades atuais
-
-Atualmente o sistema já consegue analisar, quando as informações estão disponíveis:
-
-- DNS
-- MX
-- SPF
-- DKIM *(com limitações conhecidas e abordagem honesta)*
-- DMARC
-- TLS/SSL do website
-- segurança de transporte de e-mail
-- dados de registro do domínio
-- score de segurança
-- severidade
-- findings
-- recomendações priorizadas
-
----
-
-## Limitação importante sobre DKIM
-
-DKIM não pode ser confirmado de forma totalmente confiável apenas com o domínio informado em todos os cenários.
-
-Por isso, o projeto adota uma abordagem honesta:
-
-- usar heurísticas quando o selector não for conhecido
-- evitar afirmar ausência com falsa certeza
-- manter a estrutura pronta para futura validação mais confiável via headers reais de e-mail
-
----
-
-## Stack utilizada
-
-- **Python**
-- **FastAPI**
-- **Pydantic v2**
-- **dnspython**
-- **SQLAlchemy**
-- **Jinja2**
-- **SQLite**
-- **Pytest**
-
----
-
-## Executando localmente
+## Instalacao local
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e .[dev]
 uvicorn app.main:app --reload
+```
+
+## Dependencias opcionais importantes
+
+### PDF com WeasyPrint
+
+O projeto agora usa `WeasyPrint` como motor principal de PDF.
+
+- Dependencia Python ja esta declarada no projeto
+- Em Windows, o runtime nativo do WeasyPrint pode exigir Pango e dependencias do MSYS2
+- Se o ambiente nao conseguir carregar o WeasyPrint, a rota de exportacao responde com indisponibilidade controlada em vez de quebrar a aplicacao
+
+Rotas:
+
+- `GET /reports/{domain}.pdf`
+
+### GeoIP com MaxMind
+
+O bloco `ip_intelligence` agora usa provider MaxMind/GeoIP2.
+
+Modos suportados:
+
+- bases locais MMDB
+- credenciais de web service MaxMind para enriquecimento parcial
+
+Se nada estiver configurado:
+
+- a resolucao A/AAAA continua funcionando
+- o bloco de GeoIP volta como indisponivel de forma explicita
+- a analise principal nao quebra
+
+### Asset Discovery com Amass
+
+O discovery usa um runner externo configuravel.
+
+- nunca roda dentro de `/analyze`
+- persiste execucoes e subdominios descobertos
+- marca quais achados eram novos para o sistema
+- falha de forma controlada quando o binario nao existe ou a feature esta desabilitada
+
+Rotas web:
+
+- `GET /discovery`
+- `POST /discovery/runs`
+- `GET /discovery/runs/{id}`
+
+Rotas API autenticadas por sessao:
+
+- `GET /api/v1/discovery`
+- `POST /api/v1/discovery`
+- `GET /api/v1/discovery/{id}`
+
+## Variaveis de ambiente
+
+Consulte `.env.example`. Os grupos principais agora sao:
+
+- `DSC_GEOIP_*`: provider MaxMind/GeoIP2
+- `DSC_ASSET_DISCOVERY_*` e `DSC_AMASS_*`: modulo de discovery
+- `DSC_EMAIL_DELIVERY_ENABLED` e `DSC_SMTP_*`: alertas por e-mail
+
+## Modulo de monitoramento
+
+O monitoramento autenticado continua disponivel com:
+
+- estados `active`, `paused` e `deleted`
+- API externa autenticada por token somente para monitoramento
+- exportacao PDF do snapshot mais recente
+
+Endpoints externos de monitoramento:
+
+- `POST /api/external/v1/monitoring`
+- `GET /api/external/v1/monitoring`
+- `GET /api/external/v1/monitoring/{id}`
+- `POST /api/external/v1/monitoring/{id}/pause`
+- `POST /api/external/v1/monitoring/{id}/resume`
+- `DELETE /api/external/v1/monitoring/{id}`
+
+## Testes
+
+```bash
+pytest -q
+```
+
+Estado atual da suite nesta implementacao:
+
+- `53 passed`
+
+## Limitacoes conhecidas
+
+- WeasyPrint depende de bibliotecas nativas do sistema
+- MaxMind pode retornar campos ausentes; geolocalizacao continua aproximada
+- BIMI readiness nao equivale a garantia de exibicao universal em provedores de mailbox
+- DNSSEC ficou preparado no schema e na apresentacao, mas ainda nao entrou no motor principal
+- O runner de Amass foi mantido desacoplado e simples; nao ha fila assicrona dedicada ainda
+
+## Referencias arquiteturais usadas nesta iteracao
+
+- `Kozea/WeasyPrint`: renderizacao HTML/CSS para PDF
+- `maxmind/GeoIP2-python`: provider MaxMind para contexto de IP
+- `domainaware/checkdmarc`: abordagem de parsing e normalizacao para SPF, MTA-STS, TLS-RPT e BIMI
+- `owasp-amass/amass`: separacao do modulo de attack surface discovery e persistencia de runs

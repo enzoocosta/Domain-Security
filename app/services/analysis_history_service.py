@@ -60,6 +60,12 @@ class AnalysisHistoryService:
                 return None
             return self.get_latest_snapshot(db, tracked_domain.id)
 
+    def get_latest_result_for_domain(self, domain: str) -> AnalysisResponse | None:
+        snapshot = self.get_latest_snapshot_for_domain(domain)
+        if snapshot is None or not snapshot.snapshot_data:
+            return None
+        return AnalysisResponse.model_validate(snapshot.snapshot_data)
+
     def get_or_create_tracked_domain(self, db: Session, normalized_domain: str) -> TrackedDomain:
         tracked_domain = self._get_tracked_domain(db, normalized_domain)
         current_time = utcnow()

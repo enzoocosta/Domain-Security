@@ -32,3 +32,7 @@ class AuthenticationError(DomainSecurityError):
 
 class AuthorizationError(DomainSecurityError):
     """Raised when access to a protected resource is denied."""
+
+
+class FeatureUnavailableError(DomainSecurityError):
+    """Raised when an optional feature is not available in the current environment."""
