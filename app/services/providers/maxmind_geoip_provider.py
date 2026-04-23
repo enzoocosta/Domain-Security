@@ -113,10 +113,20 @@ class MaxMindGeoIPProvider:
         if city_response is None:
             notes.append("Nenhuma base City ou web service MaxMind respondeu com localizacao para este IP.")
 
+        country_name = self._safe_get(city_response, "country.name")
+        country_code = self._safe_get(city_response, "country.iso_code")
+        usage_type = self._derive_usage_type(
+            isp=self._safe_get(isp_response, "isp"),
+            organization=organization,
+            anonymous_flags=anonymous_flags,
+        )
+
         return GeoIPLookupResult(
             available=city_response is not None or asn_response is not None or isp_response is not None,
             source=f"{self.source_name}:{'+'.join(source_parts)}" if source_parts else self.source_name,
-            country=self._safe_get(city_response, "country.iso_code") or self._safe_get(city_response, "country.name"),
+            country=country_name or country_code,
+            country_name=country_name,
+            country_code=country_code,
             region=self._safe_get(city_response, "subdivisions.most_specific.name"),
             city=self._safe_get(city_response, "city.name"),
             timezone=self._safe_get(city_response, "location.time_zone"),
@@ -124,6 +134,7 @@ class MaxMindGeoIPProvider:
             asn_org=self._safe_get(asn_response, "autonomous_system_organization"),
             isp=self._safe_get(isp_response, "isp"),
             organization=organization,
+            usage_type=usage_type,
             anonymous_ip_flags=anonymous_flags,
             is_proxy_or_hosting_guess=True if anonymous_flags else None,
             confidence_note=confidence_note,
@@ -249,3 +260,25 @@ class MaxMindGeoIPProvider:
         if not value:
             return None
         return value if value.startswith("AS") else f"AS{value}"
+
+    @staticmethod
+    def _derive_usage_type(
+        *,
+        isp: str | None,
+        organization: str | None,
+        anonymous_flags: list[str],
+    ) -> str | None:
+        if "hosting_provider" in anonymous_flags:
+            return "hosting"
+
+        combined = " ".join(part.lower() for part in (isp, organization) if part)
+        if not combined:
+            return None
+
+        if any(token in combined for token in ("cloud", "hosting", "cdn", "datacenter", "data center")):
+            return "hosting"
+        if any(token in combined for token in ("residential", "broadband", "fiber", "cable", "wireless", "mobile")):
+            return "residential"
+        if any(token in combined for token in ("business", "enterprise", "corporate")):
+            return "business"
+        return None

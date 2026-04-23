@@ -5,6 +5,24 @@
 {% from "partials/recommendation_item.html" import render_recommendation_item %}
 
 {% block content %}
+  {% if report.alert_banner %}
+    <section class="domain-status-banner" role="alert" aria-live="polite">
+      <div class="domain-status-banner__inner">
+        <span class="domain-status-banner__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 3 2 21h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+            <path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+            <circle cx="12" cy="17" r="1.2" fill="currentColor"></circle>
+          </svg>
+        </span>
+        <div>
+          <strong>{{ report.alert_banner.title }}</strong>
+          <p>{{ report.alert_banner.detail }}</p>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
   {% call render_section_card("Resultado da analise", "Resumo executivo", report.executive.summary, "section-card--hero", report.executive.actions) %}
     <div class="summary-hero">
       <div class="summary-hero__copy">
@@ -24,6 +42,55 @@
         <span class="summary-score__caption">{{ report.executive.score_caption }}</span>
         <span class="badge badge--{{ report.executive.severity.tone }}">{{ report.executive.severity.label }}</span>
       </aside>
+    </div>
+
+    <div class="executive-grid">
+      {% for block in report.executive.blocks %}
+        <article class="detail-card detail-card--executive">
+          <div class="detail-card__header">
+            <div class="executive-card__title">
+              <span class="executive-card__icon" aria-hidden="true">
+                {% if block.icon == "registration" %}
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" stroke-width="1.8"></rect>
+                    <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                  </svg>
+                {% elif block.icon == "tls" %}
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 3 6 6v5c0 4.2 2.6 8 6 10 3.4-2 6-5.8 6-10V6l-6-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+                    <path d="M9.5 11.5 11 13l3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                {% else %}
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 12h16M12 4v16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"></circle>
+                  </svg>
+                {% endif %}
+              </span>
+              <div>
+                <span class="eyebrow-label">Resumo</span>
+                <h3>{{ block.title }}</h3>
+              </div>
+            </div>
+            {% if block.badge %}
+              <span class="badge badge--{{ block.badge.tone }}">{{ block.badge.label }}</span>
+            {% endif %}
+          </div>
+
+          <div class="metrics-grid metrics-grid--compact">
+            {% for field in block.fields %}
+              {{ render_metric_card(field.label, field.value, field.tone, field.detail, 'metric-card--compact ' ~ (field.classes or ''), field.badge) }}
+            {% endfor %}
+            {% if block.status_field %}
+              {{ render_metric_card(block.status_field.label, block.status_field.value, block.status_field.tone, block.status_field.detail, 'metric-card--compact ' ~ (block.status_field.classes or ''), block.status_field.badge) }}
+            {% endif %}
+          </div>
+
+          {% if block.note %}
+            <p class="detail-card__note">{{ block.note }}</p>
+          {% endif %}
+        </article>
+      {% endfor %}
     </div>
   {% endcall %}
 
@@ -104,9 +171,15 @@
         {% endfor %}
       </div>
     {% else %}
-      <div class="empty-state">
-        <h3>Sem recomendacoes adicionais</h3>
-        <p>O resultado atual nao exige um plano de acao complementar alem do acompanhamento normal.</p>
+      <div class="empty-state empty-state--success">
+        <span class="empty-state__icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"></circle>
+            <path d="m8.5 12.5 2.3 2.3 4.7-5.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </span>
+        <h3>Nenhuma acao necessaria</h3>
+        <p>Nenhuma acao necessaria no momento.</p>
       </div>
     {% endif %}
   {% endcall %}
@@ -130,7 +203,7 @@
               {% if card.fields %}
                 <div class="metrics-grid metrics-grid--compact">
                   {% for field in card.fields %}
-                    {{ render_metric_card(field.label, field.value, field.tone, field.detail, 'metric-card--compact') }}
+                    {{ render_metric_card(field.label, field.value, field.tone, field.detail, 'metric-card--compact ' ~ (field.classes or ''), field.badge) }}
                   {% endfor %}
                 </div>
               {% endif %}

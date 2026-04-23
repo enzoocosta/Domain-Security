@@ -73,6 +73,8 @@ def _email_tls_ok() -> EmailTLSResult:
 def _registration_ok() -> DomainRegistrationResult:
     now = datetime.now(tz=UTC)
     return DomainRegistrationResult(
+        available=True,
+        whois_available=True,
         rdap_available=True,
         created_at=now - timedelta(days=365),
         expires_at=now + timedelta(days=120),
@@ -80,8 +82,8 @@ def _registration_ok() -> DomainRegistrationResult:
         expiry_status="ok",
         registrar="Example Registrar",
         status=["active"],
-        message="Dados RDAP obtidos com datas de criacao e expiracao.",
-        source="RDAP",
+        message="Dados de registro obtidos com datas de criacao e expiracao.",
+        source="WHOIS",
     )
 
 
@@ -100,16 +102,23 @@ def _ip_intelligence_ok() -> IPIntelligenceResult:
         is_public=True,
         has_public_ip=True,
         reverse_dns="edge.example.net",
+        asn="AS64500",
+        asn_org="Example Networks",
+        asn_name="Example Networks",
+        isp="Example Edge",
         organization="Example Edge",
         provider_guess="Example Edge",
-        country="US",
+        country="United States",
+        country_name="United States",
+        country_code="US",
         region="California",
         city="Los Angeles",
         timezone="America/Los_Angeles",
+        usage_type="hosting",
         confidence="media",
         message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
         notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
-        source="ipinfo",
+        source="maxmind:city+asn+isp",
     )
 
 
@@ -158,8 +167,9 @@ def test_analysis_service_builds_scored_result():
     assert result.website_tls.ssl_active is True
     assert result.email_tls.has_email_tls_data is True
     assert result.email_tls.mx_results[0].starttls_supported is True
-    assert result.domain_registration.rdap_available is True
+    assert result.domain_registration.whois_available is True
     assert result.ip_intelligence.primary_ip == "93.184.216.34"
+    assert result.ip_intelligence.asn == "AS64500"
     assert result.changes.has_previous_snapshot is False
     assert result.score >= 85
     assert result.severity in {"bom", "excelente"}
@@ -167,7 +177,7 @@ def test_analysis_service_builds_scored_result():
     assert result.performance.cache_hit is False
     assert result.performance.total_ms >= result.performance.normalize_ms
     assert result.performance.mx_ms >= 0
-    assert any(item.category == "tls_site" for item in result.findings)
+    assert {item.category for item in result.findings} == {"mx", "spf", "dkim", "dmarc"}
     assert "HTTPS ativo" in result.summary
 
 
@@ -200,13 +210,15 @@ def test_analysis_service_marks_transport_and_registration_risks():
         note="O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal.",
     )
     registration = DomainRegistrationResult(
+        available=True,
+        whois_available=True,
         rdap_available=True,
         days_to_expire=10,
         expiry_status="proximo_expiracao",
         registrar="Example Registrar",
         status=["clientTransferProhibited"],
-        message="Dados RDAP obtidos parcialmente; algumas datas nao foram publicadas.",
-        source="RDAP",
+        message="Dados de registro obtidos parcialmente; algumas datas nao foram publicadas.",
+        source="WHOIS",
     )
     service = DomainAnalysisService(
         dns_service=StubDNSService(
@@ -218,6 +230,7 @@ def test_analysis_service_marks_transport_and_registration_risks():
         website_tls_service=StubWebsiteTLSService(website_tls),
         email_tls_service=StubEmailTLSService(email_tls),
         domain_registration_service=StubDomainRegistrationService(registration),
+        ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_ok()),
         history_service=StubAnalysisHistoryService(),
     )
 
@@ -228,9 +241,10 @@ def test_analysis_service_marks_transport_and_registration_risks():
     assert result.score_breakdown.spf_score == 5
     assert result.checks.dmarc.policy == "none"
     assert result.email_tls.has_email_tls_data is False
-    assert any(item.category == "tls_site" and item.severity == "critico" for item in result.findings)
-    assert any(item.category == "tls_email" and item.severity == "alto" for item in result.findings)
-    assert any(item.category == "registro_dominio" and item.priority == "alta" for item in result.recommendations)
+    assert {item.category for item in result.findings} == {"mx", "spf", "dkim", "dmarc"}
+    assert any(item.title == "Renovar SSL" for item in result.recommendations)
+    assert any(item.title == "Renovar dominio" for item in result.recommendations)
+    assert any(item.title == "Verificar DKIM" for item in result.recommendations)
 
 
 def test_analysis_service_returns_partial_result_on_dns_timeout():
@@ -241,7 +255,11 @@ def test_analysis_service_returns_partial_result_on_dns_timeout():
                 "example.com": DNSTimeoutError("Timeout SPF."),
                 "_dmarc.example.com": DNSTimeoutError("Timeout DMARC."),
             },
-        )
+        ),
+        website_tls_service=StubWebsiteTLSService(_website_tls_ok()),
+        email_tls_service=StubEmailTLSService(_email_tls_ok()),
+        domain_registration_service=StubDomainRegistrationService(_registration_ok()),
+        ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_ok()),
     )
 
     result = service.analyze_target("example.com")
@@ -251,7 +269,7 @@ def test_analysis_service_returns_partial_result_on_dns_timeout():
     assert result.checks.dmarc.lookup_error == "Timeout DMARC."
     assert result.email_tls.has_email_tls_data is False
     assert result.performance.cache_hit is False
-    assert any(item.title == "MX inconclusivo" for item in result.findings)
+    assert any(item.title == "MX nao verificado" for item in result.findings)
     assert any("resultado parcial" in item for item in result.notes)
 
 
@@ -267,12 +285,14 @@ def test_analysis_service_uses_short_lived_cache():
     website_tls_service = StubWebsiteTLSService(_website_tls_ok())
     email_tls_service = StubEmailTLSService(_email_tls_ok())
     domain_registration_service = StubDomainRegistrationService(_registration_ok())
+    ip_intelligence_service = StubIPIntelligenceService(_ip_intelligence_ok())
     history_service = StubAnalysisHistoryService()
     service = DomainAnalysisService(
         dns_service=dns_service,
         website_tls_service=website_tls_service,
         email_tls_service=email_tls_service,
         domain_registration_service=domain_registration_service,
+        ip_intelligence_service=ip_intelligence_service,
         history_service=history_service,
         analysis_cache=AnalysisCache(ttl_seconds=300),
     )
@@ -287,6 +307,7 @@ def test_analysis_service_uses_short_lived_cache():
     assert website_tls_service.call_count == 1
     assert email_tls_service.call_count == 1
     assert domain_registration_service.call_count == 1
+    assert ip_intelligence_service.call_count == 1
     assert history_service.record_call_count == 1
 
 
@@ -334,6 +355,16 @@ class SlowDomainRegistrationService(StubDomainRegistrationService):
         return super().analyze(domain)
 
 
+class SlowIPIntelligenceService(StubIPIntelligenceService):
+    def __init__(self, result: IPIntelligenceResult, delay_seconds: float = 0.07) -> None:
+        super().__init__(result)
+        self.delay_seconds = delay_seconds
+
+    def analyze(self, domain: str) -> IPIntelligenceResult:
+        sleep(self.delay_seconds)
+        return super().analyze(domain)
+
+
 def test_analysis_service_parallelizes_independent_stages():
     service = DomainAnalysisService(
         dns_service=SlowDNSService(
@@ -348,6 +379,7 @@ def test_analysis_service_parallelizes_independent_stages():
         website_tls_service=SlowWebsiteTLSService(_website_tls_ok()),
         email_tls_service=SlowEmailTLSService(_email_tls_ok()),
         domain_registration_service=SlowDomainRegistrationService(_registration_ok()),
+        ip_intelligence_service=SlowIPIntelligenceService(_ip_intelligence_ok()),
         history_service=StubAnalysisHistoryService(),
         analysis_cache=AnalysisCache(ttl_seconds=0),
     )
@@ -356,8 +388,9 @@ def test_analysis_service_parallelizes_independent_stages():
     result = service.analyze_target("example.com")
     elapsed = perf_counter() - started_at
 
-    assert elapsed < 0.32
+    assert elapsed < 0.42
     assert result.checks.dkim.status == "provavelmente_presente"
     assert result.performance.mx_ms >= 50
     assert result.performance.website_tls_ms >= 50
     assert result.performance.email_tls_ms >= 50
+    assert result.performance.ip_intelligence_ms >= 50

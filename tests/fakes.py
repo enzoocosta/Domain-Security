@@ -18,6 +18,7 @@ class StubDNSService:
         mx_records: list[MXRecordValue] | None = None,
         ip_records: list[IPAddressValue] | None = None,
         reverse_dns: str | None = None,
+        reverse_dns_map: dict[str, str | None] | None = None,
         txt_records: dict[str, list[str]] | None = None,
         mx_exception: Exception | None = None,
         txt_exceptions: dict[str, Exception] | None = None,
@@ -25,6 +26,7 @@ class StubDNSService:
         self.mx_records = mx_records or []
         self.ip_records = ip_records or []
         self.reverse_dns = reverse_dns
+        self.reverse_dns_map = reverse_dns_map or {}
         self.txt_records = txt_records or {}
         self.mx_exception = mx_exception
         self.txt_exceptions = txt_exceptions or {}
@@ -52,6 +54,8 @@ class StubDNSService:
         return list(self.ip_records)
 
     def get_reverse_dns(self, address: str) -> str | None:
+        if address in self.reverse_dns_map:
+            return self.reverse_dns_map[address]
         return self.reverse_dns
 
 
@@ -66,6 +70,8 @@ class StubWebsiteTLSService:
 
 
 class StubEmailTLSService:
+    CERTIFICATE_NOTE = "O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal."
+
     def __init__(self, result: EmailTLSResult) -> None:
         self.result = result
         self.call_count = 0

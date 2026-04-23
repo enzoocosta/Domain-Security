@@ -154,22 +154,11 @@ class DomainAnalysisService:
         domain_registration = rdap_stage.value
         ip_intelligence = ip_intelligence_stage.value
 
-        findings = self.recommendation_service.build_findings(
-            checks,
-            score_outcome.breakdown,
-            score_outcome.score,
-            score_outcome.severity,
-            website_tls=website_tls,
-            email_tls=email_tls,
-            domain_registration=domain_registration,
-            email_policies=email_policies,
-        )
+        findings = self.recommendation_service.build_findings(checks)
         recommendations = self.recommendation_service.build_recommendations(
             checks,
             website_tls=website_tls,
-            email_tls=email_tls,
             domain_registration=domain_registration,
-            email_policies=email_policies,
         )
         notes = self._build_notes(checks, website_tls, email_tls, domain_registration, email_policies)
         notes.extend(ip_intelligence.notes)
@@ -190,6 +179,7 @@ class DomainAnalysisService:
             dkim_ms=dkim_stage.duration_ms,
             website_tls_ms=website_tls_stage.duration_ms,
             email_tls_ms=email_tls_stage.duration_ms,
+            domain_registration_ms=rdap_stage.duration_ms,
             rdap_ms=rdap_stage.duration_ms,
             ip_intelligence_ms=ip_intelligence_stage.duration_ms,
             cache_hit=False,
@@ -242,6 +232,7 @@ class DomainAnalysisService:
             dkim_ms=0,
             website_tls_ms=0,
             email_tls_ms=0,
+            domain_registration_ms=0,
             rdap_ms=0,
             ip_intelligence_ms=0,
             cache_hit=True,
@@ -315,10 +306,12 @@ class DomainAnalysisService:
             return self.domain_registration_service.analyze(domain)
         except Exception as exc:
             return DomainRegistrationResult(
+                available=False,
+                whois_available=False,
                 rdap_available=False,
-                message="Nao foi possivel concluir a consulta RDAP para o dominio.",
+                message="Nao foi possivel concluir a consulta WHOIS para o dominio.",
                 error=str(exc),
-                source="RDAP",
+                source="WHOIS",
             )
 
     def _load_ip_intelligence_stage(self, domain: str) -> IPIntelligenceResult:
@@ -456,7 +449,7 @@ class DomainAnalysisService:
     ) -> list[str]:
         notes = [
             "A avaliacao de DKIM continua heuristica sem headers reais de e-mail.",
-            "Os dados de registro via RDAP podem ser parciais, conforme o TLD e o registrador.",
+            "Os dados de registro do dominio podem ser parciais, conforme o TLD, o registrador e a origem disponivel.",
         ]
 
         if website_tls.provider_guess:
@@ -478,7 +471,7 @@ class DomainAnalysisService:
         if website_tls.error and not website_tls.ssl_active:
             notes.append("A verificacao de HTTPS do website retornou resultado parcial ou inconclusivo.")
         if domain_registration.error:
-            notes.append("A consulta de registro do dominio pode estar parcial por indisponibilidade de RDAP.")
+            notes.append("A consulta de registro do dominio pode estar parcial por indisponibilidade de WHOIS ou fallback secundario.")
         if email_policies.mta_sts.warnings:
             notes.append("MTA-STS foi localizado com inconsistencias ou cobertura parcial.")
         if email_policies.tls_rpt.warnings:

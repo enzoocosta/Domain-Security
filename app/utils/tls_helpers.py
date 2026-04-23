@@ -19,11 +19,19 @@ def format_name(name_entries: tuple[tuple[tuple[str, str], ...], ...] | list | N
     if not name_entries:
         return None
 
-    parts: list[str] = []
+    pairs: list[tuple[str, str]] = []
     for entry in name_entries:
         for key, value in entry:
-            parts.append(f"{key}={value}")
-    return ", ".join(parts) if parts else None
+            pairs.append((str(key), str(value)))
+
+    for preferred_key in ("organizationName", "commonName", "organizationalUnitName"):
+        for key, value in pairs:
+            if key == preferred_key and value:
+                return value
+
+    if len(pairs) == 1:
+        return pairs[0][1]
+    return ", ".join(f"{key}={value}" for key, value in pairs) if pairs else None
 
 
 def extract_san(certificate: dict[str, Any] | None) -> list[str]:
@@ -53,14 +61,22 @@ def calculate_days_to_expire(not_after: datetime | None) -> int | None:
     return math.floor(delta.total_seconds() / 86400)
 
 
-def certificate_expiry_label(days_to_expire: int | None) -> str:
+def expiry_status_for_days(days_to_expire: int | None, *, warning_window_days: int) -> str:
     if days_to_expire is None:
         return "desconhecido"
     if days_to_expire < 0:
         return "expirado"
-    if days_to_expire <= 30:
+    if days_to_expire <= warning_window_days:
         return "proximo_expiracao"
     return "ok"
+
+
+def certificate_expiry_label(days_to_expire: int | None) -> str:
+    return expiry_status_for_days(days_to_expire, warning_window_days=30)
+
+
+def domain_expiry_label(days_to_expire: int | None) -> str:
+    return expiry_status_for_days(days_to_expire, warning_window_days=60)
 
 
 def guess_certificate_provider(

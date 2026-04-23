@@ -147,6 +147,23 @@ class MonitoredDomain(Base):
         back_populates="monitored_domain",
         cascade="all, delete-orphan",
     )
+    premium_subscription: Mapped["PremiumSubscription | None"] = relationship(
+        back_populates="monitored_domain",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+    premium_ingest_tokens: Mapped[list["PremiumIngestToken"]] = relationship(
+        back_populates="monitored_domain",
+        cascade="all, delete-orphan",
+    )
+    traffic_events: Mapped[list["TrafficEvent"]] = relationship(
+        back_populates="monitored_domain",
+        cascade="all, delete-orphan",
+    )
+    traffic_incidents: Mapped[list["TrafficIncident"]] = relationship(
+        back_populates="monitored_domain",
+        cascade="all, delete-orphan",
+    )
 
 
 class MonitoringRun(Base):
@@ -280,3 +297,119 @@ class DiscoveredSubdomain(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
 
     discovery_run: Mapped[DiscoveryRun] = relationship(back_populates="subdomains")
+
+
+class PremiumSubscription(Base):
+    """Commercial state of the Monitoring Plus add-on for a monitored domain."""
+
+    __tablename__ = "premium_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("monitored_domain_id", name="uq_premium_subscriptions_domain"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    monitored_domain_id: Mapped[int] = mapped_column(
+        ForeignKey("monitored_domains.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    plan_code: Mapped[str] = mapped_column(String(32), nullable=False, default="monitoring_plus")
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="trial", index=True)
+    trial_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+    )
+
+    monitored_domain: Mapped[MonitoredDomain] = relationship(back_populates="premium_subscription")
+
+
+class PremiumIngestToken(Base):
+    """Authenticates traffic ingestion from a monitored domain to Monitoring Plus."""
+
+    __tablename__ = "premium_ingest_tokens"
+    __table_args__ = (
+        UniqueConstraint("token_identifier", name="uq_premium_ingest_tokens_identifier"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    monitored_domain_id: Mapped[int] = mapped_column(
+        ForeignKey("monitored_domains.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    token_identifier: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    token_prefix: Mapped[str] = mapped_column(String(32), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(128), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=utcnow,
+        onupdate=utcnow,
+    )
+
+    monitored_domain: Mapped[MonitoredDomain] = relationship(back_populates="premium_ingest_tokens")
+
+
+class TrafficEvent(Base):
+    """Append-only log of HTTP requests reported by a customer for Monitoring Plus."""
+
+    __tablename__ = "premium_traffic_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    monitored_domain_id: Mapped[int] = mapped_column(
+        ForeignKey("monitored_domains.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    method: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    referer: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    request_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    meta: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+
+    monitored_domain: Mapped[MonitoredDomain] = relationship(back_populates="traffic_events")
+
+
+class TrafficIncident(Base):
+    """Detected suspicious behavior derived from ingested traffic events."""
+
+    __tablename__ = "premium_traffic_incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    monitored_domain_id: Mapped[int] = mapped_column(
+        ForeignKey("monitored_domains.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    incident_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)
+    dedupe_key: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    email_delivery_status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    email_last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    email_last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    monitored_domain: Mapped[MonitoredDomain] = relationship(back_populates="traffic_incidents")

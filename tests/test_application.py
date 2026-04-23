@@ -92,6 +92,8 @@ def _email_tls_result() -> EmailTLSResult:
 def _registration_result() -> DomainRegistrationResult:
     now = datetime.now(tz=UTC)
     return DomainRegistrationResult(
+        available=True,
+        whois_available=True,
         rdap_available=True,
         created_at=now - timedelta(days=400),
         expires_at=now + timedelta(days=150),
@@ -99,8 +101,8 @@ def _registration_result() -> DomainRegistrationResult:
         expiry_status="ok",
         registrar="Example Registrar",
         status=["active"],
-        message="Dados RDAP obtidos com datas de criacao e expiracao.",
-        source="RDAP",
+        message="Dados de registro obtidos com datas de criacao e expiracao.",
+        source="WHOIS",
     )
 
 
@@ -119,16 +121,23 @@ def _ip_intelligence_result() -> IPIntelligenceResult:
         is_public=True,
         has_public_ip=True,
         reverse_dns="edge.example.net",
+        asn="AS64500",
+        asn_org="Example Networks",
+        asn_name="Example Networks",
+        isp="Example Edge",
         organization="Example Edge",
         provider_guess="Example Edge",
-        country="US",
+        country="United States",
+        country_name="United States",
+        country_code="US",
         region="California",
         city="Los Angeles",
         timezone="America/Los_Angeles",
+        usage_type="hosting",
         confidence="media",
         message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
         notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
-        source="ipinfo",
+        source="maxmind:city+asn+isp",
     )
 
 
@@ -138,15 +147,18 @@ def _install_stub_service(
     *,
     email_tls_result: EmailTLSResult | None = None,
     history_response: DomainHistoryResponse | None = None,
+    registration_result: DomainRegistrationResult | None = None,
+    website_tls_result: WebsiteTLSResult | None = None,
+    ip_intelligence_result: IPIntelligenceResult | None = None,
 ) -> None:
     history_service = StubAnalysisHistoryService(history_response=history_response)
     pdf_renderer = FakePDFRenderer(content=b"%PDF-fake-report")
     service = DomainAnalysisService(
         dns_service=dns_service,
-        website_tls_service=StubWebsiteTLSService(_website_tls_result()),
+        website_tls_service=StubWebsiteTLSService(website_tls_result or _website_tls_result()),
         email_tls_service=StubEmailTLSService(email_tls_result or _email_tls_result()),
-        domain_registration_service=StubDomainRegistrationService(_registration_result()),
-        ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_result()),
+        domain_registration_service=StubDomainRegistrationService(registration_result or _registration_result()),
+        ip_intelligence_service=StubIPIntelligenceService(ip_intelligence_result or _ip_intelligence_result()),
         history_service=history_service,
     )
     monkeypatch.setattr(analysis_route, "service", service)
@@ -223,15 +235,17 @@ def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, mon
     assert payload["website_tls"]["provider_guess"] == "Cloudflare"
     assert payload["email_tls"]["has_email_tls_data"] is True
     assert payload["email_tls"]["mx_results"][0]["starttls_supported"] is True
-    assert payload["domain_registration"]["rdap_available"] is True
+    assert payload["domain_registration"]["whois_available"] is True
+    assert payload["domain_registration"]["source"] == "WHOIS"
     assert payload["email_policies"]["dnssec"]["status"] == "nao_implementado"
     assert payload["ip_intelligence"]["primary_ip"] == "93.184.216.34"
+    assert payload["ip_intelligence"]["country_code"] == "US"
     assert payload["changes"]["has_previous_snapshot"] is False
     assert payload["performance"]["cache_hit"] is False
     assert payload["performance"]["total_ms"] >= 0
     assert payload["score"] >= 80
     assert payload["severity"] in {"bom", "excelente"}
-    assert any(item["category"] == "tls_site" for item in payload["findings"])
+    assert {item["category"] for item in payload["findings"]} == {"mx", "spf", "dkim", "dmarc"}
 
 
 def test_analysis_endpoint_returns_404_for_nonexistent_domain(client, monkeypatch):
@@ -264,14 +278,39 @@ def test_form_submission_renders_new_sections(client, monkeypatch):
 
     assert response.status_code == 200
     assert "Resultado da analise" in response.text
-    assert "TLS do website" in response.text
-    assert "Seguranca de transporte de e-mail" in response.text
-    assert "Registro do dominio" in response.text
-    assert "Mail Transport Policies" in response.text
+    assert "WHOIS / Registro" in response.text
+    assert "SSL do website" in response.text
     assert "IP Intelligence" in response.text
     assert "Detalhamento do score" in response.text
     assert "Mudancas desde a ultima analise" in response.text
     assert "Recomendacoes" in response.text
+    assert "Mail Transport Policies" not in response.text
+    assert "Technical Notes" not in response.text
+    assert "SPF em softfail" in response.text
+    assert "DMARC em none" in response.text
+
+
+def test_form_submission_renders_frozen_domain_banner(client, monkeypatch):
+    registration = _registration_result().model_copy(update={"status": ["clientHold"]})
+    _install_stub_service(
+        monkeypatch,
+        StubDNSService(
+            mx_records=[MXRecordValue(preference=5, exchange="mx1.example.com")],
+            txt_records={
+                "example.com": ["v=spf1 mx -all"],
+                "_dmarc.example.com": ["v=DMARC1; p=reject"],
+                "default._domainkey.example.com": ["v=DKIM1; p=MIIB"],
+            },
+        ),
+        registration_result=registration,
+    )
+
+    response = client.post("/analyze", data={"target": "example.com"})
+
+    assert response.status_code == 200
+    assert "Dominio possivelmente congelado ou suspenso" in response.text
+    assert "clientHold" in response.text
+    assert "SUSPENSO" in response.text
 
 
 def test_form_submission_hides_empty_email_tls_details(client, monkeypatch):

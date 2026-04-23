@@ -204,17 +204,22 @@ def make_field(
     tone: str = "neutral",
     detail: str | None = None,
     skip_if_empty: bool = True,
+    empty: str = "-",
+    classes: str = "",
+    badge: dict[str, str] | None = None,
 ) -> dict[str, str] | None:
     if skip_if_empty and is_blank(value):
         return None
-    rendered = field_value(value)
-    if skip_if_empty and rendered == "-":
+    rendered = field_value(value, empty=empty)
+    if skip_if_empty and rendered == empty:
         return None
     return {
         "label": label,
         "value": rendered,
         "tone": tone,
         "detail": detail or "",
+        "classes": classes,
+        "badge": badge,
     }
 
 

@@ -169,6 +169,8 @@ class EmailTLSResult(BaseModel):
 
 
 class DomainRegistrationResult(BaseModel):
+    available: bool = False
+    whois_available: bool = False
     rdap_available: bool = False
     created_at: datetime | None = None
     expires_at: datetime | None = None
@@ -267,6 +269,7 @@ class ResolvedIPAddress(BaseModel):
     version: IPVersion
     source_record_type: Literal["A", "AAAA"]
     is_public: bool
+    reverse_dns: str | None = None
 
 
 class IPIntelligenceResult(BaseModel):
@@ -279,13 +282,17 @@ class IPIntelligenceResult(BaseModel):
     reverse_dns: str | None = None
     asn: str | None = None
     asn_org: str | None = None
+    asn_name: str | None = None
     isp: str | None = None
     organization: str | None = None
     provider_guess: str | None = None
     country: str | None = None
+    country_name: str | None = None
+    country_code: str | None = None
     region: str | None = None
     city: str | None = None
     timezone: str | None = None
+    usage_type: str | None = None
     anonymous_ip_flags: list[str] = Field(default_factory=list)
     is_proxy_or_hosting_guess: bool | None = None
     reputation_source: str | None = None
@@ -324,6 +331,7 @@ class AnalysisPerformance(BaseModel):
     dkim_ms: int = Field(default=0, ge=0)
     website_tls_ms: int = Field(default=0, ge=0)
     email_tls_ms: int = Field(default=0, ge=0)
+    domain_registration_ms: int = Field(default=0, ge=0)
     rdap_ms: int = Field(default=0, ge=0)
     ip_intelligence_ms: int = Field(default=0, ge=0)
     cache_hit: bool = False

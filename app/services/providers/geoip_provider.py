@@ -9,6 +9,8 @@ class GeoIPLookupResult:
     available: bool
     source: str | None = None
     country: str | None = None
+    country_name: str | None = None
+    country_code: str | None = None
     region: str | None = None
     city: str | None = None
     timezone: str | None = None
@@ -16,6 +18,7 @@ class GeoIPLookupResult:
     asn_org: str | None = None
     isp: str | None = None
     organization: str | None = None
+    usage_type: str | None = None
     anonymous_ip_flags: list[str] = field(default_factory=list)
     is_proxy_or_hosting_guess: bool | None = None
     confidence_note: str | None = None

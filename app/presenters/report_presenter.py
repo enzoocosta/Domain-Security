@@ -36,6 +36,23 @@ _RECOMMENDATION_ORDER = {
     "baixa": 2,
 }
 
+_FROZEN_DOMAIN_STATUS_MARKERS = ("hold", "suspended", "frozen", "inactive", "serverhold", "clienthold")
+_SUSPENDED_DOMAIN_STATUS_MARKERS = ("hold", "suspended", "serverhold", "clienthold")
+_MONTH_ABBR = {
+    1: "jan",
+    2: "fev",
+    3: "mar",
+    4: "abr",
+    5: "mai",
+    6: "jun",
+    7: "jul",
+    8: "ago",
+    9: "set",
+    10: "out",
+    11: "nov",
+    12: "dez",
+}
+
 
 class ReportPresenter:
     def present(
@@ -47,6 +64,7 @@ class ReportPresenter:
     ) -> dict:
         analysis_timestamp = analyzed_at or datetime.now(tz=UTC)
         return {
+            "alert_banner": self._build_domain_status_banner(result),
             "executive": self._build_executive(result, submitted_target=submitted_target, analyzed_at=analysis_timestamp),
             "score_breakdown": self._build_score_breakdown(result),
             "changes": self._build_changes(result),
@@ -54,13 +72,11 @@ class ReportPresenter:
             "recommendations": self._build_recommendations(result.recommendations),
             "technical_sections": [
                 self._build_email_authentication(result),
-                self._build_email_policy_section(result),
                 self._build_dns_mx_section(result),
                 self._build_ip_intelligence_section(result),
                 self._build_website_tls_section(result),
                 self._build_mail_transport_section(result),
                 self._build_domain_registration_section(result),
-                self._build_technical_notes_section(result),
             ],
         }
 
@@ -82,6 +98,11 @@ class ReportPresenter:
             "severity": severity,
             "status_text": self._executive_status_text(result.score, result.severity),
             "analyzed_at": format_datetime(analyzed_at),
+            "blocks": [
+                self._build_executive_registration_block(result),
+                self._build_executive_ip_block(result),
+                self._build_executive_tls_block(result),
+            ],
             "actions": [
                 {"href": "/", "label": "Nova analise", "style": "primary"},
                 {
@@ -95,6 +116,98 @@ class ReportPresenter:
                     "style": "secondary",
                 },
             ],
+        }
+
+    def _build_executive_registration_block(self, result: AnalysisResponse) -> dict:
+        registration = result.domain_registration
+        status_alert = self._registration_status_alert(registration.status)
+        return {
+            "title": "WHOIS / Registro",
+            "icon": "registration",
+            "badge": status_alert["badge"] if status_alert else self._registration_badge(
+                self._registration_available(registration),
+                registration.expiry_status,
+            ),
+            "fields": compact_fields(
+                [
+                    make_field("Registrar", registration.registrar, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "Criado em",
+                        self._format_date_long(registration.created_at),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                    make_field(
+                        "Expira em",
+                        self._format_date_long(registration.expires_at),
+                        tone=self._expiry_tone(registration.expiry_status),
+                        badge=self._expiry_inline_badge(registration.days_to_expire, threshold=60),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                ]
+            ),
+            "status_field": make_field(
+                "Status",
+                self._registration_status_value(registration.status),
+                tone="danger" if status_alert else "neutral",
+                skip_if_empty=False,
+                empty="Indisponivel",
+                classes="metric-card--status-alert" if status_alert else "",
+                badge=status_alert["badge"] if status_alert else None,
+            ),
+            "note": None,
+        }
+
+    def _build_executive_ip_block(self, result: AnalysisResponse) -> dict:
+        ip_info = result.ip_intelligence
+        return {
+            "title": "IP principal",
+            "icon": "ip",
+            "badge": self._ip_badge(ip_info.has_public_ip),
+            "fields": compact_fields(
+                [
+                    make_field("IP principal", ip_info.primary_ip, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "ASN",
+                        self._join_non_empty(ip_info.asn, ip_info.asn_name or ip_info.asn_org, separator=" · "),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                    make_field(
+                        "Pais",
+                        self._country_display(ip_info.country_name, ip_info.country_code, fallback=ip_info.country),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                ]
+            ),
+            "note": self._ip_source_note(ip_info),
+        }
+
+    def _build_executive_tls_block(self, result: AnalysisResponse) -> dict:
+        tls = result.website_tls
+        return {
+            "title": "SSL do website",
+            "icon": "tls",
+            "badge": self._tls_badge(tls.ssl_active, tls.certificate_valid, tls.expiry_status),
+            "fields": compact_fields(
+                [
+                    make_field("SSL ativo", yes_no(tls.ssl_active), skip_if_empty=False, empty="Indisponivel"),
+                    make_field("Emissor", tls.issuer, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "Expira em",
+                        self._format_date_long(tls.not_after),
+                        tone=self._expiry_tone(tls.expiry_status),
+                        detail=self._days_remaining_label(tls.days_to_expire),
+                        badge=self._expiry_inline_badge(tls.days_to_expire, threshold=30),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                    make_field("Versao TLS", tls.tls_version, skip_if_empty=False, empty="Indisponivel"),
+                ]
+            ),
+            "note": None,
         }
 
     def _build_score_breakdown(self, result: AnalysisResponse) -> list[dict[str, str]]:
@@ -156,7 +269,7 @@ class ReportPresenter:
                 "title": item.title,
                 "detail": item.detail,
                 "category": category_label(item.category),
-                "severity": finding_severity_badge(item.severity),
+                "severity": self._finding_badge(item),
             }
             for item in ordered
         ]
@@ -169,10 +282,10 @@ class ReportPresenter:
         return [
             {
                 "title": item.title,
-                "action": item.action,
-                "rationale": item.rationale,
+                "description": item.action,
                 "category": category_label(item.category),
                 "priority": recommendation_priority_badge(item.priority),
+                "priority_value": item.priority,
             }
             for item in ordered
         ]
@@ -368,92 +481,83 @@ class ReportPresenter:
         }
 
     def _build_website_tls_section(self, result: AnalysisResponse) -> dict:
-        badge = self._tls_badge(result.website_tls.ssl_active, result.website_tls.certificate_valid)
-        note_parts = []
-        if result.website_tls.provider_guess:
-            note_parts.append(
-                "Provider guess e apenas uma inferencia com base na resposta observada; nao identifica com certeza a hospedagem real."
-            )
-        if result.website_tls.error:
-            note_parts.append(f"Erro tecnico: {result.website_tls.error}")
+        status_badge = self._tls_certificate_status_badge(result.website_tls.expiry_status, result.website_tls.ssl_active)
         return {
             "id": "website-tls",
             "title": "Website TLS/SSL",
-            "description": "Configuracao HTTPS observada no website, com emissor real do certificado e inferencias separadas do fato verificado.",
+            "description": "Visao objetiva do certificado HTTPS observado no website.",
             "cards": [
                 {
                     "title": "TLS do website",
-                    "summary": result.website_tls.message,
-                    "badge": badge,
+                    "summary": "Estado atual da conexao segura do site.",
+                    "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("TLS ativo", result.website_tls.ssl_active, skip_if_empty=False),
-                            make_field("Certificado valido", result.website_tls.certificate_valid),
-                            make_field("Versao TLS", result.website_tls.tls_version),
-                            make_field("Status do certificado", expiry_status_badge(result.website_tls.expiry_status)["label"]),
-                            make_field("Dias para expirar", result.website_tls.days_to_expire),
-                            make_field("Issuer", result.website_tls.issuer),
-                            make_field("Subject", result.website_tls.subject),
-                            make_field("Not before", result.website_tls.not_before),
-                            make_field("Not after", result.website_tls.not_after),
-                            make_field("Provider guess", result.website_tls.provider_guess),
-                            make_field("Confianca", confidence_label(result.website_tls.confidence)),
+                            make_field("TLS ativo", yes_no(result.website_tls.ssl_active), skip_if_empty=False, empty="—"),
+                            make_field("Versao TLS", result.website_tls.tls_version, skip_if_empty=False, empty="—"),
+                            make_field("Emissor", result.website_tls.issuer, skip_if_empty=False, empty="—"),
+                            make_field("Validade", self._format_date_long(result.website_tls.not_after), skip_if_empty=False, empty="—"),
+                            make_field("Dias restantes", result.website_tls.days_to_expire, skip_if_empty=False, empty="—"),
+                            make_field(
+                                "Status",
+                                status_badge["label"],
+                                tone=status_badge["tone"],
+                                skip_if_empty=False,
+                                empty="—",
+                                badge=status_badge,
+                            ),
                         ]
                     ),
-                    "lists": compact_list_blocks([make_list_block("SAN", result.website_tls.san)]),
-                    "note": " ".join(note_parts).strip() or None,
+                    "lists": [],
+                    "note": None,
                 }
             ],
             "empty_text": "",
         }
 
     def _build_ip_intelligence_section(self, result: AnalysisResponse) -> dict:
-        resolved_labels = [
-            f"{item.ip} ({item.version.upper()} / {item.source_record_type} / {'publico' if item.is_public else 'nao publico'})"
-            for item in result.ip_intelligence.resolved_ips
-        ]
-        note_parts = list(result.ip_intelligence.notes)
-        if result.ip_intelligence.reputation_summary:
-            note_parts.append(result.ip_intelligence.reputation_summary)
-        if result.ip_intelligence.confidence_note:
-            note_parts.append(result.ip_intelligence.confidence_note)
+        resolved_labels = []
+        for item in result.ip_intelligence.resolved_ips:
+            label = f"{item.ip} · {item.source_record_type} · PTR {item.reverse_dns or '—'}"
+            resolved_labels.append(label)
         return {
             "id": "ip-intelligence",
             "title": "IP Intelligence",
-            "description": "Contexto tecnico e geografico aproximado do IP observado para o website, sem assumir que ele representa toda a infraestrutura real.",
+            "description": "Contexto resumido do IP principal observado para o website.",
             "cards": [
                 {
                     "title": "IP resolvido para o website",
-                    "summary": result.ip_intelligence.message,
+                    "summary": self._ip_summary(result.ip_intelligence),
                     "badge": self._ip_badge(result.ip_intelligence.has_public_ip),
                     "fields": compact_fields(
                         [
-                            make_field("IP principal", result.ip_intelligence.primary_ip),
-                            make_field("Versao", result.ip_intelligence.ip_version),
-                            make_field("IP publico", yes_no(result.ip_intelligence.is_public)),
-                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns),
-                            make_field("ASN", result.ip_intelligence.asn),
-                            make_field("ASN org", result.ip_intelligence.asn_org),
-                            make_field("ISP", result.ip_intelligence.isp),
-                            make_field("Organizacao", result.ip_intelligence.organization),
-                            make_field("Provider guess", result.ip_intelligence.provider_guess),
-                            make_field("Pais", result.ip_intelligence.country),
-                            make_field("Regiao", result.ip_intelligence.region),
-                            make_field("Cidade", result.ip_intelligence.city),
-                            make_field("Timezone", result.ip_intelligence.timezone),
-                            make_field("Proxy ou hosting guess", yes_no(result.ip_intelligence.is_proxy_or_hosting_guess)),
-                            make_field("Fonte", result.ip_intelligence.source),
-                            make_field("Confianca", confidence_label(result.ip_intelligence.confidence)),
+                            make_field("IP principal", result.ip_intelligence.primary_ip, skip_if_empty=False, empty="—"),
+                            make_field("Versao", result.ip_intelligence.ip_version, skip_if_empty=False, empty="—"),
+                            make_field("ASN", result.ip_intelligence.asn, skip_if_empty=False, empty="—"),
+                            make_field("Nome do AS", result.ip_intelligence.asn_name or result.ip_intelligence.asn_org, skip_if_empty=False, empty="—"),
+                            make_field("Organizacao", result.ip_intelligence.organization, skip_if_empty=False, empty="—"),
+                            make_field(
+                                "Pais",
+                                self._country_display(
+                                    result.ip_intelligence.country_name,
+                                    result.ip_intelligence.country_code,
+                                    fallback=result.ip_intelligence.country,
+                                ),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field("Cidade", result.ip_intelligence.city, skip_if_empty=False, empty="—"),
+                            make_field("ISP", result.ip_intelligence.isp, skip_if_empty=False, empty="—"),
+                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns, skip_if_empty=False, empty="—"),
+                            make_field("Tipo de uso", result.ip_intelligence.usage_type, skip_if_empty=False, empty="—"),
                         ]
                     ),
                     "lists": compact_list_blocks(
                         [
                             make_list_block("IPs resolvidos", resolved_labels),
-                            make_list_block("Flags de anonimidade", result.ip_intelligence.anonymous_ip_flags),
-                            make_list_block("Tags de reputacao", result.ip_intelligence.reputation_tags),
                         ]
                     ),
-                    "note": " ".join(note_parts).strip() or None,
+                    "note": self._ip_source_note(result.ip_intelligence),
                 }
             ],
             "empty_text": "",
@@ -513,34 +617,49 @@ class ReportPresenter:
         }
 
     def _build_domain_registration_section(self, result: AnalysisResponse) -> dict:
-        note_parts = [
-            "Criacao, expiracao, registrador e status podem variar conforme TLD e disponibilidade RDAP."
-        ]
-        if result.domain_registration.error:
-            note_parts.append(f"Erro tecnico: {result.domain_registration.error}")
+        if not self._registration_available(result.domain_registration):
+            return {
+                "id": "domain-registration",
+                "title": "Domain Registration",
+                "description": "Dados principais de WHOIS e expiracao do dominio.",
+                "cards": [],
+                "empty_text": "Dados de registro indisponiveis para este dominio.",
+            }
+
+        status_badge = self._registration_expiry_badge(result.domain_registration.expiry_status)
         return {
             "id": "domain-registration",
             "title": "Domain Registration",
-            "description": "Dados de registro exibidos apenas quando a origem retorna informacao real e util.",
+            "description": "Dados principais de WHOIS e expiracao do dominio.",
             "cards": [
                 {
                     "title": "Registro do dominio",
-                    "summary": result.domain_registration.message,
-                    "badge": self._registration_badge(result.domain_registration.rdap_available),
+                    "summary": "Informacoes basicas do registro do dominio.",
+                    "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("Fonte", result.domain_registration.source),
-                            make_field("Registrar", result.domain_registration.registrar),
-                            make_field("Criado em", result.domain_registration.created_at),
-                            make_field("Expira em", result.domain_registration.expires_at),
+                            make_field("Registrar", result.domain_registration.registrar, skip_if_empty=False, empty="—"),
+                            make_field("Criado em", self._format_date_long(result.domain_registration.created_at), skip_if_empty=False, empty="—"),
+                            make_field(
+                                "Expira em",
+                                self._format_date_long(result.domain_registration.expires_at),
+                                tone=self._expiry_tone(result.domain_registration.expiry_status),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
                             make_field("Status de expiracao", expiry_status_badge(result.domain_registration.expiry_status)["label"]),
-                            make_field("Dias para expirar", result.domain_registration.days_to_expire),
+                            make_field(
+                                "Status de expiracao",
+                                status_badge["label"],
+                                tone=status_badge["tone"],
+                                skip_if_empty=False,
+                                empty="—",
+                                badge=status_badge,
+                            ),
                         ]
                     ),
-                    "lists": compact_list_blocks(
-                        [make_list_block("Status do registro", result.domain_registration.status)]
-                    ),
-                    "note": " ".join(note_parts).strip(),
+                    "lists": [],
+                    "note": None,
                 }
             ],
             "empty_text": "",
@@ -577,7 +696,7 @@ class ReportPresenter:
                         make_field("DMARC", f"{result.performance.dmarc_ms} ms", skip_if_empty=False),
                         make_field("TLS do website", f"{result.performance.website_tls_ms} ms", skip_if_empty=False),
                         make_field("TLS de e-mail", f"{result.performance.email_tls_ms} ms", skip_if_empty=False),
-                        make_field("RDAP", f"{result.performance.rdap_ms} ms", skip_if_empty=False),
+                        make_field("Registro do dominio", f"{result.performance.domain_registration_ms or result.performance.rdap_ms} ms", skip_if_empty=False),
                         make_field("IP intelligence", f"{result.performance.ip_intelligence_ms} ms", skip_if_empty=False),
                         make_field("Cache hit", result.performance.cache_hit, skip_if_empty=False),
                     ]
@@ -593,6 +712,289 @@ class ReportPresenter:
             "cards": cards,
             "empty_text": "",
         }
+
+    def _build_executive_ip_block(self, result: AnalysisResponse) -> dict:
+        ip_info = result.ip_intelligence
+        return {
+            "title": "IP principal",
+            "icon": "ip",
+            "badge": self._ip_badge(ip_info.has_public_ip),
+            "fields": compact_fields(
+                [
+                    make_field("IP principal", ip_info.primary_ip, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "ASN",
+                        self._join_non_empty(ip_info.asn, ip_info.asn_name or ip_info.asn_org, separator=" / "),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                    make_field(
+                        "Pais",
+                        self._country_display(ip_info.country_name, ip_info.country_code, fallback=ip_info.country),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                ]
+            ),
+            "note": self._ip_source_note(ip_info),
+        }
+
+    def _build_website_tls_section(self, result: AnalysisResponse) -> dict:
+        status_badge = self._tls_certificate_status_badge(result.website_tls.expiry_status, result.website_tls.ssl_active)
+        return {
+            "id": "website-tls",
+            "title": "Website TLS/SSL",
+            "description": "Visao objetiva do certificado HTTPS observado no website.",
+            "cards": [
+                {
+                    "title": "TLS do website",
+                    "summary": "Estado atual da conexao segura do site.",
+                    "badge": status_badge,
+                    "fields": compact_fields(
+                        [
+                            make_field("TLS ativo", yes_no(result.website_tls.ssl_active), skip_if_empty=False, empty="-"),
+                            make_field("Versao TLS", result.website_tls.tls_version, skip_if_empty=False, empty="-"),
+                            make_field("Emissor", result.website_tls.issuer, skip_if_empty=False, empty="-"),
+                            make_field("Validade", self._format_date_long(result.website_tls.not_after), skip_if_empty=False, empty="-"),
+                            make_field("Dias restantes", result.website_tls.days_to_expire, skip_if_empty=False, empty="-"),
+                            make_field(
+                                "Status",
+                                status_badge["label"],
+                                tone=status_badge["tone"],
+                                skip_if_empty=False,
+                                empty="-",
+                                badge=status_badge,
+                            ),
+                        ]
+                    ),
+                    "lists": [],
+                    "note": None,
+                }
+            ],
+            "empty_text": "",
+        }
+
+    def _build_ip_intelligence_section(self, result: AnalysisResponse) -> dict:
+        resolved_labels = [
+            f"{item.ip} | {item.source_record_type} | PTR {item.reverse_dns or '-'}"
+            for item in result.ip_intelligence.resolved_ips
+        ]
+        return {
+            "id": "ip-intelligence",
+            "title": "IP Intelligence",
+            "description": "Contexto resumido do IP principal observado para o website.",
+            "cards": [
+                {
+                    "title": "IP resolvido para o website",
+                    "summary": self._ip_summary(result.ip_intelligence),
+                    "badge": self._ip_badge(result.ip_intelligence.has_public_ip),
+                    "fields": compact_fields(
+                        [
+                            make_field("IP principal", result.ip_intelligence.primary_ip, skip_if_empty=False, empty="-"),
+                            make_field("Versao", result.ip_intelligence.ip_version, skip_if_empty=False, empty="-"),
+                            make_field("ASN", result.ip_intelligence.asn, skip_if_empty=False, empty="-"),
+                            make_field("Nome do AS", result.ip_intelligence.asn_name or result.ip_intelligence.asn_org, skip_if_empty=False, empty="-"),
+                            make_field("Organizacao", result.ip_intelligence.organization, skip_if_empty=False, empty="-"),
+                            make_field(
+                                "Pais",
+                                self._country_display(
+                                    result.ip_intelligence.country_name,
+                                    result.ip_intelligence.country_code,
+                                    fallback=result.ip_intelligence.country,
+                                ),
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field("Cidade", result.ip_intelligence.city, skip_if_empty=False, empty="-"),
+                            make_field("ISP", result.ip_intelligence.isp, skip_if_empty=False, empty="-"),
+                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns, skip_if_empty=False, empty="-"),
+                            make_field("Tipo de uso", result.ip_intelligence.usage_type, skip_if_empty=False, empty="-"),
+                        ]
+                    ),
+                    "lists": compact_list_blocks([make_list_block("IPs resolvidos", resolved_labels)]),
+                    "note": self._ip_source_note(result.ip_intelligence),
+                }
+            ],
+            "empty_text": "",
+        }
+
+    def _build_domain_registration_section(self, result: AnalysisResponse) -> dict:
+        if not self._registration_available(result.domain_registration):
+            return {
+                "id": "domain-registration",
+                "title": "Domain Registration",
+                "description": "Dados principais de WHOIS e expiracao do dominio.",
+                "cards": [],
+                "empty_text": "Dados de registro indisponiveis para este dominio.",
+            }
+
+        status_badge = self._registration_expiry_badge(result.domain_registration.expiry_status)
+        return {
+            "id": "domain-registration",
+            "title": "Domain Registration",
+            "description": "Dados principais de WHOIS e expiracao do dominio.",
+            "cards": [
+                {
+                    "title": "Registro do dominio",
+                    "summary": "Informacoes basicas do registro do dominio.",
+                    "badge": status_badge,
+                    "fields": compact_fields(
+                        [
+                            make_field("Registrar", result.domain_registration.registrar, skip_if_empty=False, empty="-"),
+                            make_field("Criado em", self._format_date_long(result.domain_registration.created_at), skip_if_empty=False, empty="-"),
+                            make_field(
+                                "Expira em",
+                                self._format_date_long(result.domain_registration.expires_at),
+                                tone=self._expiry_tone(result.domain_registration.expiry_status),
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Status de expiracao",
+                                status_badge["label"],
+                                tone=status_badge["tone"],
+                                skip_if_empty=False,
+                                empty="-",
+                                badge=status_badge,
+                            ),
+                        ]
+                    ),
+                    "lists": [],
+                    "note": None,
+                }
+            ],
+            "empty_text": "",
+        }
+
+    @staticmethod
+    def _format_date_only(value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        return ReportPresenter._format_date_long(value)
+
+    @staticmethod
+    def _format_date_long(value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        return f"{value.day:02d} {_MONTH_ABBR[value.month]} {value.year}"
+
+    @staticmethod
+    def _expiry_tone(expiry_status: str) -> str:
+        if expiry_status == "expirado":
+            return "danger"
+        if expiry_status == "proximo_expiracao":
+            return "warning"
+        if expiry_status == "ok":
+            return "success"
+        return "neutral"
+
+    @staticmethod
+    def _expiry_detail(days_to_expire: int | None) -> str | None:
+        if days_to_expire is None:
+            return None
+        if days_to_expire < 0:
+            return f"Expirou ha {abs(days_to_expire)} dia(s)"
+        return f"Expira em {days_to_expire} dia(s)"
+
+    @staticmethod
+    def _days_remaining_label(days_to_expire: int | None) -> str | None:
+        if days_to_expire is None:
+            return None
+        if days_to_expire < 0:
+            return f"Expirou ha {abs(days_to_expire)} dia(s)"
+        return f"{days_to_expire} dia(s) restantes"
+
+    @staticmethod
+    def _registration_available(registration) -> bool:
+        return bool(registration.available or registration.whois_available or registration.rdap_available)
+
+    def _build_domain_status_banner(self, result: AnalysisResponse) -> dict | None:
+        status_alert = self._registration_status_alert(result.domain_registration.status)
+        if not status_alert:
+            return None
+        return {
+            "title": "Dominio possivelmente congelado ou suspenso",
+            "detail": (
+                f"O status WHOIS indica restricao ativa: {status_alert['matched_status']}. "
+                "Dominios neste estado podem parar de funcionar ou ja estar inacessiveis."
+            ),
+        }
+
+    @staticmethod
+    def _registration_status_alert(statuses: list[str]) -> dict[str, object] | None:
+        for status in statuses:
+            normalized = status.lower()
+            if not any(marker in normalized for marker in _FROZEN_DOMAIN_STATUS_MARKERS):
+                continue
+            label = "SUSPENSO" if any(marker in normalized for marker in _SUSPENDED_DOMAIN_STATUS_MARKERS) else "CONGELADO"
+            return {
+                "matched_status": status,
+                "badge": {"value": label.lower(), "label": label, "tone": "danger"},
+            }
+        return None
+
+    @staticmethod
+    def _registration_status_value(statuses: list[str]) -> str | None:
+        if not statuses:
+            return None
+        return ", ".join(statuses)
+
+    @staticmethod
+    def _expiry_inline_badge(days_to_expire: int | None, *, threshold: int) -> dict[str, str] | None:
+        if days_to_expire is None:
+            return None
+        if days_to_expire < 0:
+            return {"value": "expirado", "label": "Expirado", "tone": "danger"}
+        if days_to_expire <= threshold:
+            return {
+                "value": "expira_em_breve",
+                "label": f"Expira em {days_to_expire} dias",
+                "tone": "warning",
+            }
+        return None
+
+    def _registration_source_note(self, registration) -> str | None:
+        parts = []
+        if registration.source:
+            parts.append(f"Fonte: {registration.source}.")
+        if registration.expiry_status == "expirado" and registration.days_to_expire is not None:
+            parts.append(f"Alerta: o dominio expirou ha {abs(registration.days_to_expire)} dia(s).")
+        elif registration.expiry_status == "proximo_expiracao" and registration.days_to_expire is not None:
+            parts.append(f"Alerta: o dominio expira em {registration.days_to_expire} dia(s).")
+        elif not self._registration_available(registration):
+            parts.append("Os dados de registro ficaram indisponiveis neste snapshot.")
+        return " ".join(parts).strip() or None
+
+    @staticmethod
+    def _country_display(country_name: str | None, country_code: str | None, *, fallback: str | None = None) -> str | None:
+        if country_name and country_code:
+            return f"{country_name} - {country_code}"
+        if country_name:
+            return country_name
+        if country_code:
+            return country_code
+        return fallback
+
+    @staticmethod
+    def _join_non_empty(*values: str | None, separator: str = " ") -> str | None:
+        cleaned = [value for value in values if value]
+        if not cleaned:
+            return None
+        return separator.join(cleaned)
+
+    @staticmethod
+    def _ip_source_note(ip_info) -> str | None:
+        if not ip_info.source:
+            return None
+        if "ipwhois" in ip_info.source:
+            return "Dados via RDAP/ipwhois"
+        if ip_info.source.startswith("maxmind"):
+            return "Dados via MaxMind"
+        return None
+
+    @staticmethod
+    def _website_tls_note(website_tls) -> str | None:
+        return None
 
     @staticmethod
     def _score_caption(score: int) -> str:
@@ -652,12 +1054,38 @@ class ReportPresenter:
         return "info"
 
     @staticmethod
-    def _tls_badge(ssl_active: bool, certificate_valid: bool | None) -> dict[str, str]:
+    def _finding_badge(item: Finding) -> dict[str, str]:
+        if item.severity == "baixo":
+            return {"value": "ok", "label": "OK", "tone": "success"}
+        return finding_severity_badge(item.severity)
+
+    @staticmethod
+    def _tls_badge(
+        ssl_active: bool,
+        certificate_valid: bool | None,
+        expiry_status: str = "desconhecido",
+    ) -> dict[str, str]:
         if not ssl_active:
             return {"value": "ausente", "label": "Sem HTTPS", "tone": "danger"}
+        if expiry_status == "expirado":
+            return {"value": "expirado", "label": "SSL expirado", "tone": "danger"}
         if certificate_valid is False:
             return {"value": "invalido", "label": "Certificado invalido", "tone": "warning"}
+        if expiry_status == "proximo_expiracao":
+            return {"value": "proximo_expiracao", "label": "Expira em breve", "tone": "warning"}
         return {"value": "presente", "label": "HTTPS ativo", "tone": "success"}
+
+    @staticmethod
+    def _tls_certificate_status_badge(expiry_status: str, ssl_active: bool) -> dict[str, str]:
+        if not ssl_active:
+            return {"value": "ausente", "label": "Sem HTTPS", "tone": "danger"}
+        if expiry_status == "expirado":
+            return {"value": "expirado", "label": "Expirado", "tone": "danger"}
+        if expiry_status == "proximo_expiracao":
+            return {"value": "proximo_expiracao", "label": "Expirando", "tone": "warning"}
+        if expiry_status == "ok":
+            return {"value": "ok", "label": "Valido", "tone": "success"}
+        return {"value": "desconhecido", "label": "Desconhecido", "tone": "neutral"}
 
     @staticmethod
     def _mail_tls_badge(starttls_supported: bool | None, certificate_valid: bool | None) -> dict[str, str]:
@@ -668,13 +1096,35 @@ class ReportPresenter:
         return {"value": "presente", "label": "TLS observado", "tone": "success"}
 
     @staticmethod
-    def _registration_badge(rdap_available: bool) -> dict[str, str]:
-        if rdap_available:
-            return {"value": "presente", "label": "RDAP disponivel", "tone": "success"}
-        return {"value": "ausente", "label": "RDAP indisponivel", "tone": "warning"}
+    def _registration_badge(available: bool, expiry_status: str) -> dict[str, str]:
+        if expiry_status == "expirado":
+            return {"value": "expirado", "label": "Expirado", "tone": "danger"}
+        if expiry_status == "proximo_expiracao":
+            return {"value": "proximo_expiracao", "label": "Expira em breve", "tone": "warning"}
+        if available:
+            return {"value": "presente", "label": "Registro consultado", "tone": "success"}
+        return {"value": "ausente", "label": "Registro indisponivel", "tone": "warning"}
+
+    @staticmethod
+    def _registration_expiry_badge(expiry_status: str) -> dict[str, str]:
+        if expiry_status == "expirado":
+            return {"value": "expirado", "label": "Expirado", "tone": "danger"}
+        if expiry_status == "proximo_expiracao":
+            return {"value": "proximo_expiracao", "label": "Expirando", "tone": "warning"}
+        if expiry_status == "ok":
+            return {"value": "ok", "label": "OK", "tone": "success"}
+        return {"value": "desconhecido", "label": "Desconhecido", "tone": "neutral"}
 
     @staticmethod
     def _ip_badge(has_public_ip: bool) -> dict[str, str]:
         if has_public_ip:
             return {"value": "presente", "label": "IP publico observado", "tone": "success"}
         return {"value": "desconhecido", "label": "Sem IP publico util", "tone": "warning"}
+
+    @staticmethod
+    def _ip_summary(ip_info) -> str:
+        if ip_info.primary_ip:
+            return "Contexto do IP principal observado para o website."
+        if ip_info.resolved_ips:
+            return "Os IPs resolvidos nao oferecem contexto publico suficiente."
+        return "Nenhum IP foi resolvido para o website."

@@ -242,7 +242,6 @@
 }
 
 .finding-card,
-.recommendation-item,
 .detail-card,
 .timeline-card,
 .feature-card,
@@ -256,7 +255,6 @@
 }
 
 .finding-card,
-.recommendation-item,
 .detail-card,
 .timeline-card,
 .feature-card,
@@ -271,7 +269,6 @@
 }
 
 .finding-card__header,
-.recommendation-item__header,
 .detail-card__header,
 .timeline-card__header {
   display: flex;
@@ -281,12 +278,6 @@
   margin-bottom: 0.85rem;
 }
 
-.recommendation-item__action {
-  font-weight: 600;
-  color: var(--text-soft);
-}
-
-.recommendation-item__rationale,
 .detail-card__note,
 .timeline-card__header p {
   color: var(--text-muted);
@@ -353,7 +344,6 @@
 
 @media (max-width: 640px) {
   .finding-card__header,
-  .recommendation-item__header,
   .detail-card__header,
   .timeline-card__header {
     flex-direction: column;

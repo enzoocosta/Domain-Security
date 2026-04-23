@@ -24,6 +24,31 @@
         </aside>
       </div>
       <p class="overview">{{ report.executive.overview }}</p>
+
+      <div class="fact-grid">
+        {% for item in report.executive.score_breakdown %}
+          <article class="fact-card">
+            <span class="fact-card__label">{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </article>
+        {% endfor %}
+      </div>
+
+      <div class="list-grid">
+        {% for group in report.executive.fact_groups %}
+          <article class="list-card">
+            <h3>{{ group.title }}</h3>
+            <ul>
+              {% for item in group["items"] %}
+                <li><strong>{{ item.label }}:</strong> {{ item.value }}</li>
+              {% endfor %}
+            </ul>
+            {% if group.note %}
+              <p class="section-note">{{ group.note }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
     </header>
 
     <section class="section">
@@ -69,7 +94,7 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="muted">Nao ha recomendacoes adicionais para destacar neste snapshot.</p>
+        <p class="muted">Nenhuma acao necessaria no momento.</p>
       {% endif %}
     </section>
 

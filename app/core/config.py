@@ -88,6 +88,23 @@ class Settings:
     amass_binary_path: str | None
     amass_timeout_seconds: int
     amass_passive_mode: bool
+    monitoring_plus_scheduler_enabled: bool
+    monitoring_plus_detection_interval_seconds: int
+    monitoring_plus_alert_dispatch_interval_seconds: int
+    monitoring_plus_trial_days: int
+    monitoring_plus_spike_window_seconds: int
+    monitoring_plus_spike_baseline_window_seconds: int
+    monitoring_plus_spike_multiplier: float
+    monitoring_plus_spike_min_requests: int
+    monitoring_plus_scan_window_seconds: int
+    monitoring_plus_scan_unique_paths_threshold: int
+    monitoring_plus_scan_404_ratio_threshold: float
+    monitoring_plus_error_window_seconds: int
+    monitoring_plus_error_rate_threshold: float
+    monitoring_plus_error_min_requests: int
+    monitoring_plus_event_retention_hours: int
+    monitoring_plus_ingest_max_batch: int
+    monitoring_plus_suspicious_user_agents: tuple[str, ...]
 
 
 settings = Settings(
@@ -138,4 +155,39 @@ settings = Settings(
     amass_binary_path=_env_text("DSC_AMASS_BINARY_PATH", "amass"),
     amass_timeout_seconds=max(10, _env_int("DSC_AMASS_TIMEOUT_SECONDS", 300)),
     amass_passive_mode=_env_bool("DSC_AMASS_PASSIVE_MODE", True),
+    monitoring_plus_scheduler_enabled=_env_bool("DSC_MONITORING_PLUS_SCHEDULER_ENABLED", True),
+    monitoring_plus_detection_interval_seconds=max(15, _env_int("DSC_MONITORING_PLUS_DETECTION_INTERVAL_SECONDS", 60)),
+    monitoring_plus_alert_dispatch_interval_seconds=max(15, _env_int("DSC_MONITORING_PLUS_ALERT_DISPATCH_INTERVAL_SECONDS", 60)),
+    monitoring_plus_trial_days=max(1, _env_int("DSC_MONITORING_PLUS_TRIAL_DAYS", 14)),
+    monitoring_plus_spike_window_seconds=max(30, _env_int("DSC_MONITORING_PLUS_SPIKE_WINDOW_SECONDS", 60)),
+    monitoring_plus_spike_baseline_window_seconds=max(
+        300, _env_int("DSC_MONITORING_PLUS_SPIKE_BASELINE_WINDOW_SECONDS", 86400)
+    ),
+    monitoring_plus_spike_multiplier=max(1.5, _env_float("DSC_MONITORING_PLUS_SPIKE_MULTIPLIER", 10.0)),
+    monitoring_plus_spike_min_requests=max(5, _env_int("DSC_MONITORING_PLUS_SPIKE_MIN_REQUESTS", 50)),
+    monitoring_plus_scan_window_seconds=max(60, _env_int("DSC_MONITORING_PLUS_SCAN_WINDOW_SECONDS", 300)),
+    monitoring_plus_scan_unique_paths_threshold=max(
+        5, _env_int("DSC_MONITORING_PLUS_SCAN_UNIQUE_PATHS_THRESHOLD", 20)
+    ),
+    monitoring_plus_scan_404_ratio_threshold=max(
+        0.1, _env_float("DSC_MONITORING_PLUS_SCAN_404_RATIO_THRESHOLD", 0.5)
+    ),
+    monitoring_plus_error_window_seconds=max(60, _env_int("DSC_MONITORING_PLUS_ERROR_WINDOW_SECONDS", 300)),
+    monitoring_plus_error_rate_threshold=max(
+        0.05, _env_float("DSC_MONITORING_PLUS_ERROR_RATE_THRESHOLD", 0.3)
+    ),
+    monitoring_plus_error_min_requests=max(10, _env_int("DSC_MONITORING_PLUS_ERROR_MIN_REQUESTS", 30)),
+    monitoring_plus_event_retention_hours=max(1, _env_int("DSC_MONITORING_PLUS_EVENT_RETENTION_HOURS", 168)),
+    monitoring_plus_ingest_max_batch=max(1, _env_int("DSC_MONITORING_PLUS_INGEST_MAX_BATCH", 500)),
+    monitoring_plus_suspicious_user_agents=tuple(
+        item.strip().lower()
+        for item in (
+            _env_text(
+                "DSC_MONITORING_PLUS_SUSPICIOUS_USER_AGENTS",
+                "nikto,sqlmap,nmap,masscan,acunetix,nessus,wpscan,zgrab,dirbuster,gobuster",
+            )
+            or ""
+        ).split(",")
+        if item.strip()
+    ),
 )

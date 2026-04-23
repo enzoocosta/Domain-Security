@@ -36,3 +36,7 @@ class AuthorizationError(DomainSecurityError):
 
 class FeatureUnavailableError(DomainSecurityError):
     """Raised when an optional feature is not available in the current environment."""
+
+
+class SubscriptionRequiredError(DomainSecurityError):
+    """Raised when a premium subscription is required to access the resource."""

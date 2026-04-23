@@ -10,6 +10,7 @@ from app.core.exceptions import (
     FeatureUnavailableError,
     InputValidationError,
     ResourceConflictError,
+    SubscriptionRequiredError,
 )
 
 
@@ -22,6 +23,8 @@ def get_http_status_code(exc: DomainSecurityError) -> int:
         return status.HTTP_403_FORBIDDEN
     if isinstance(exc, ResourceConflictError):
         return status.HTTP_409_CONFLICT
+    if isinstance(exc, SubscriptionRequiredError):
+        return status.HTTP_402_PAYMENT_REQUIRED
     if isinstance(exc, FeatureUnavailableError):
         return status.HTTP_503_SERVICE_UNAVAILABLE
     if isinstance(exc, DNSDomainNotFoundError):

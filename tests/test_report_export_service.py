@@ -37,6 +37,8 @@ def _website_tls_result() -> WebsiteTLSResult:
 def _registration_result() -> DomainRegistrationResult:
     now = datetime.now(tz=UTC)
     return DomainRegistrationResult(
+        available=True,
+        whois_available=True,
         rdap_available=True,
         created_at=now - timedelta(days=400),
         expires_at=now + timedelta(days=120),
@@ -44,8 +46,8 @@ def _registration_result() -> DomainRegistrationResult:
         expiry_status="ok",
         registrar="Example Registrar",
         status=["active"],
-        message="Dados RDAP obtidos com datas de criacao e expiracao.",
-        source="RDAP",
+        message="Dados de registro obtidos com datas de criacao e expiracao.",
+        source="WHOIS",
     )
 
 
@@ -56,7 +58,11 @@ def _ip_intelligence_result() -> IPIntelligenceResult:
         is_public=True,
         has_public_ip=True,
         provider_guess="Example Edge",
-        country="US",
+        asn="AS64500",
+        asn_name="Example Networks",
+        country="United States",
+        country_name="United States",
+        country_code="US",
         city="Los Angeles",
         message="O IP publico principal observado para o website foi 93.184.216.34 com contexto GeoIP disponivel.",
     )

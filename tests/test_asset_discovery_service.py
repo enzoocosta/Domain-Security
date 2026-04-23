@@ -1,3 +1,7 @@
+import pytest
+
+from app.db.base import Base
+from app.db.session import engine
 from app.services.asset_discovery_service import AssetDiscoveryService
 from app.services.auth_service import AuthenticationService
 from app.services.providers.amass_runner import AssetDiscoveryResult, DiscoveredAssetRecord
@@ -13,6 +17,12 @@ class StubAmassRunner:
     def discover(self, domain: str) -> AssetDiscoveryResult:
         self.calls.append(domain)
         return self.results.pop(0)
+
+
+@pytest.fixture(autouse=True)
+def reset_database() -> None:
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
 
 def test_asset_discovery_service_persists_results_and_marks_new_assets():

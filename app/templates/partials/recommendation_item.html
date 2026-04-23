@@ -1,13 +1,16 @@
 {% macro render_recommendation_item(item) -%}
-  <article class="recommendation-item">
-    <div class="recommendation-item__header">
-      <div>
-        <span class="eyebrow-label">{{ item.category }}</span>
-        <h3>{{ item.title }}</h3>
-      </div>
-      <span class="badge badge--{{ item.priority.tone }}">{{ item.priority.label }}</span>
+  {% set priority = item.priority_value or 'media' %}
+  <article class="recommendation-item recommendation-item--{{ priority }}">
+    <div class="recommendation-item__icon" aria-hidden="true" style="width:20px;height:20px;flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="width:20px;height:20px;flex-shrink:0;display:block;">
+        <path d="M12 3 2 21h20L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"></path>
+        <path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+        <circle cx="12" cy="17" r="1.2" fill="currentColor"></circle>
+      </svg>
     </div>
-    <p class="recommendation-item__action">{{ item.action }}</p>
-    <p class="recommendation-item__rationale">{{ item.rationale }}</p>
+    <div class="recommendation-item__content">
+      <h3>{{ item.title }}</h3>
+      <p class="recommendation-item__description">{{ item.description }}</p>
+    </div>
   </article>
 {%- endmacro %}

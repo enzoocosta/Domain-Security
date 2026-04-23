@@ -26,7 +26,11 @@ def test_ip_intelligence_selects_public_primary_and_enriches_context():
                 is_public=True,
             ),
         ],
-        reverse_dns="edge.example.net",
+        reverse_dns_map={
+            "10.0.0.4": None,
+            "93.184.216.34": "edge.example.net",
+            "2606:2800:220:1:248:1893:25c8:1946": "edge-v6.example.net",
+        },
     )
     geoip_provider = StubGeoIPProvider(
         GeoIPLookupResult(
@@ -36,10 +40,13 @@ def test_ip_intelligence_selects_public_primary_and_enriches_context():
             asn_org="Example Networks",
             isp="Example Edge",
             organization="Example Edge",
-            country="US",
+            country="United States",
+            country_name="United States",
+            country_code="US",
             region="California",
             city="Los Angeles",
             timezone="America/Los_Angeles",
+            usage_type="hosting",
             anonymous_ip_flags=["hosting_provider"],
             is_proxy_or_hosting_guess=True,
             confidence_note="Dados MaxMind sao aproximados.",
@@ -55,12 +62,15 @@ def test_ip_intelligence_selects_public_primary_and_enriches_context():
     assert result.has_public_ip is True
     assert result.multiple_public_ips is True
     assert result.reverse_dns == "edge.example.net"
-    assert result.provider_guess == "Example Edge"
-    assert result.asn_org == "Example Networks"
+    assert result.resolved_ips[1].reverse_dns == "edge.example.net"
+    assert result.resolved_ips[2].reverse_dns == "edge-v6.example.net"
+    assert result.asn_name == "Example Networks"
     assert result.isp == "Example Edge"
-    assert result.country == "US"
+    assert result.country_name == "United States"
+    assert result.country_code == "US"
+    assert result.usage_type == "hosting"
     assert result.anonymous_ip_flags == ["hosting_provider"]
-    assert any("aproximados" in item or "aproximada" in item for item in result.notes)
+    assert any("MaxMind" in item or "aproximada" in item for item in result.notes)
 
 
 def test_ip_intelligence_gracefully_handles_missing_geoip_configuration():
@@ -73,6 +83,11 @@ def test_ip_intelligence_gracefully_handles_missing_geoip_configuration():
     service = IPIntelligenceService(
         dns_service=dns_service,
         geoip_provider=DisabledGeoIPProvider(),
+        ipwhois_lookup_func=lambda ip: GeoIPLookupResult(
+            available=False,
+            source="ipwhois",
+            notes=["Fallback indisponivel."],
+        ),
     )
 
     result = service.analyze("example.com")
@@ -82,6 +97,40 @@ def test_ip_intelligence_gracefully_handles_missing_geoip_configuration():
     assert result.organization is None
     assert result.source == "disabled"
     assert result.message.startswith("O IP publico principal observado")
+
+
+def test_ip_intelligence_uses_ipwhois_fallback_when_geoip_is_unavailable():
+    dns_service = StubDNSService(
+        ip_records=[
+            IPAddressValue(address="93.184.216.34", version="ipv4", source_record_type="A", is_public=True),
+        ],
+        reverse_dns="edge.example.net",
+    )
+    service = IPIntelligenceService(
+        dns_service=dns_service,
+        geoip_provider=DisabledGeoIPProvider(),
+        ipwhois_lookup_func=lambda ip: GeoIPLookupResult(
+            available=True,
+            source="ipwhois:rdap",
+            asn="AS15169",
+            asn_org="Google LLC",
+            organization="GOGL",
+            country="United States",
+            country_name="United States",
+            country_code="US",
+            usage_type="hosting",
+            confidence_note="Fallback com foco em ASN e pais.",
+        ),
+    )
+
+    result = service.analyze("example.com")
+
+    assert result.source == "disabled+ipwhois:rdap"
+    assert result.asn == "AS15169"
+    assert result.asn_name == "Google LLC"
+    assert result.country_code == "US"
+    assert result.usage_type == "hosting"
+    assert any("fallback ipwhois" in item for item in result.notes)
 
 
 def test_ip_intelligence_skips_geoip_for_non_public_ip():
@@ -94,7 +143,8 @@ def test_ip_intelligence_skips_geoip_for_non_public_ip():
         GeoIPLookupResult(
             available=True,
             source="maxmind",
-            country="US",
+            country_name="United States",
+            country_code="US",
         )
     )
     service = IPIntelligenceService(dns_service=dns_service, geoip_provider=geoip_provider)
