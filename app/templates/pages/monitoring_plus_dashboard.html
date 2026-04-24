@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card("Monitoring Plus", "Workspace premium", "Painel tecnico para dominios com telemetria ingerida e deteccao automatizada.") %}
+    <div class="inline-meta">
+      <span>Usuario: {{ dashboard.user_email }}</span>
+      <span>Dominios premium: {{ dashboard.items | length }}</span>
+      <span>Incidentes abertos: {{ dashboard.total_open_incidents }}</span>
+    </div>
+    {% if error %}
+      <div class="message message--error top-spacing">{{ error }}</div>
+    {% endif %}
+    <p class="monitoring-plus-note">
+      A deteccao depende de eventos HTTP recebidos pelo endpoint de ingestao de cada dominio.
+      Sem ingestao, o dominio continua cadastrado, mas nao gera incidentes.
+    </p>
+    <div class="action-row">
+      <a href="/" class="button button--secondary button--small">Analisar novo dominio</a>
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Dominios premium", "Inventario", "Cada card resume estado comercial, volume recente e incidente mais recente.") %}
+    {% if dashboard.items %}
+      <div class="timeline-list">
+        {% for item in dashboard.items %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3><a href="/monitoring-plus/domains/{{ item.monitored_domain_id }}">{{ item.normalized_domain }}</a></h3>
+                {% if item.input_label %}
+                  <p>{{ item.input_label }}</p>
+                {% endif %}
+              </div>
+              <span class="badge badge--{{ item.subscription_status or 'neutral' }}">{{ item.subscription_status | humanize_token if item.subscription_status else 'Sem assinatura' }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Cobertura", "Ativa" if item.is_entitled else "Inativa", "success" if item.is_entitled else "warning") }}
+              {{ render_metric_card("Trial restante", item.days_left_in_trial if item.days_left_in_trial is not none else "-", "info") }}
+              {{ render_metric_card("Incidentes abertos", item.open_incidents, "danger" if item.open_incidents else "neutral") }}
+              {{ render_metric_card("Ultimo incidente", item.last_incident_at | format_datetime if item.last_incident_at else "nenhum", "neutral") }}
+            </div>
+            <div class="action-row">
+              <a href="/monitoring-plus/domains/{{ item.monitored_domain_id }}" class="button button--secondary button--small">Detalhes</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum dominio premium ainda</h3>
+        <p>
+          Ative o Monitoring Plus a partir do resultado de uma analise ou reutilize
+          um dominio ja monitorado quando precisar de ingestao de trafego.
+        </p>
+      </div>
+    {% endif %}
+  {% endcall %}
+{% endblock %}

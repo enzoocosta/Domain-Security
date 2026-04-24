@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,12 +8,31 @@
       name="description"
       content="Diagnostico para seguranca de dominio, autenticacao de e-mail, TLS e dados de registro com honestidade tecnica."
     />
+    <script>
+      (function () {
+        var storageKey = "dsc-theme";
+        var root = document.documentElement;
+        try {
+          var stored = localStorage.getItem(storageKey);
+          var preferred =
+            stored ||
+            (window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light");
+          root.setAttribute("data-theme", preferred);
+        } catch (error) {
+          root.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="{{ url_for('static', path='css/tokens.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/base.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/layout.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/components.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/pages/home.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/pages/result.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/pages/monitoring_plus.css') }}" />
   </head>
   <body class="app-body page-{{ page_name or 'default' }}">
     <div class="app-background" aria-hidden="true"></div>
@@ -24,5 +43,6 @@
       </main>
       {% include "partials/footer.html" %}
     </div>
+    <script src="{{ url_for('static', path='js/theme.js') }}" defer></script>
   </body>
 </html>

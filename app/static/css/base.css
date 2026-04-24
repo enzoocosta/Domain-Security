@@ -14,8 +14,8 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26%),
-    radial-gradient(circle at top right, rgba(14, 165, 164, 0.08), transparent 22%),
+    radial-gradient(circle at top left, color-mix(in srgb, var(--info) 12%, transparent), transparent 26%),
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 14%, transparent), transparent 22%),
     var(--bg);
 }
 
@@ -36,7 +36,8 @@ a:hover {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -77,8 +78,20 @@ li,
 label,
 input,
 select,
-button {
+button,
+textarea {
   line-height: 1.6;
+}
+
+p,
+li,
+h1,
+h2,
+h3,
+strong,
+span,
+code {
+  overflow-wrap: anywhere;
 }
 
 label {
@@ -89,7 +102,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 0.95rem 1rem;
   border: 1px solid var(--border-strong);
@@ -104,17 +118,19 @@ input::placeholder {
 }
 
 input:hover,
-select:hover {
+select:hover,
+textarea:hover {
   border-color: #b9c8dc;
 }
 
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 button:focus-visible,
 a:focus-visible {
   outline: none;
   border-color: rgba(37, 99, 235, 0.48);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  box-shadow: 0 0 0 4px var(--focus-ring);
 }
 
 ul {
@@ -172,13 +188,13 @@ ul {
 
 .button--primary {
   background: var(--primary);
-  color: #ffffff;
+  color: var(--text-inverse);
   box-shadow: 0 14px 30px rgba(11, 31, 58, 0.16);
 }
 
 .button--primary:hover {
   background: var(--primary-soft);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .button--secondary {
@@ -200,12 +216,12 @@ ul {
 
 .button--danger {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .button--danger:hover {
   background: #991b1b;
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 
 .button--small {
@@ -219,4 +235,9 @@ ul {
 
 .inline-form {
   margin: 0;
+}
+
+code,
+pre {
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }

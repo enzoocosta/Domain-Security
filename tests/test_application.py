@@ -7,6 +7,8 @@ from app.api.routes import discovery as discovery_route
 from app.api.routes import history as history_route
 from app.api.routes import report_web as report_web_route
 from app.api.routes import web as web_route
+from app.db.models import TrafficEvent
+from app.db.session import SessionLocal
 from app.core.exceptions import DNSDomainNotFoundError
 from app.schemas.analysis import (
     DomainRegistrationResult,
@@ -18,7 +20,10 @@ from app.schemas.analysis import (
 )
 from app.schemas.history import DomainHistoryResponse, HistoryItem
 from app.services.analysis_service import DomainAnalysisService
+from app.services.billing_service import BillingService
 from app.services.asset_discovery_service import AssetDiscoveryService
+from app.services.monitoring_service import MonitoringService
+from app.services.premium_ingest_token_service import PremiumIngestTokenService
 from app.services.report_export_service import ReportExportService
 from app.services.dns_service import MXRecordValue
 from tests.fakes import (
@@ -313,6 +318,30 @@ def test_form_submission_renders_frozen_domain_banner(client, monkeypatch):
     assert "SUSPENSO" in response.text
 
 
+def test_form_submission_renders_monitoring_plus_offer_for_authenticated_user(client, monkeypatch):
+    _install_stub_service(
+        monkeypatch,
+        StubDNSService(
+            mx_records=[MXRecordValue(preference=5, exchange="mx1.example.com")],
+            txt_records={
+                "example.com": ["v=spf1 mx -all"],
+                "_dmarc.example.com": ["v=DMARC1; p=reject"],
+            },
+        ),
+    )
+    client.post(
+        "/auth/register",
+        data={"email": "premium-owner@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    response = client.post("/analyze", data={"target": "example.com"})
+
+    assert response.status_code == 200
+    assert "Monitoring Plus" in response.text
+    assert "/monitoring-plus/activate" in response.text
+
+
 def test_form_submission_hides_empty_email_tls_details(client, monkeypatch):
     empty_email_tls = EmailTLSResult(
         mx_results=[
@@ -348,6 +377,90 @@ def test_form_submission_hides_empty_email_tls_details(client, monkeypatch):
     assert "O certificado de e-mail pertence ao servidor MX" not in response.text
     assert "porta 25" not in response.text
     assert "Timeout ao testar STARTTLS" not in response.text
+
+
+def test_monitoring_plus_activation_flow_renders_domain_detail(client):
+    client.post(
+        "/auth/register",
+        data={"email": "plus-owner@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    response = client.post(
+        "/monitoring-plus/activate",
+        data={
+            "domain": "example.com",
+            "monitoring_frequency": "daily",
+            "input_label": "Dominio premium",
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Dominio premium" in response.text
+    assert "Ingestao de trafego" in response.text
+    assert "Endpoint de ingestao" in response.text
+
+
+def test_traffic_ingest_endpoint_accepts_valid_premium_token(client):
+    from app.services.auth_service import AuthenticationService
+
+    auth_service = AuthenticationService()
+    user = auth_service.register_user("ingest-owner@example.com", "supersecret")
+    monitoring_domain = MonitoringService().create_monitored_domain(
+        user_id=user.id,
+        domain="example.com",
+        monitoring_frequency="daily",
+        input_label="API",
+    )
+    BillingService().start_trial(
+        user_id=user.id,
+        monitored_domain_id=monitoring_domain.id,
+    )
+    token = PremiumIngestTokenService().create_token(
+        user_id=user.id,
+        monitored_domain_id=monitoring_domain.id,
+        name="edge-prod",
+    )
+
+    response = client.post(
+        "/api/ingest/v1/traffic",
+        json={
+            "events": [
+                {
+                    "client_ip": "203.0.113.5",
+                    "method": "GET",
+                    "path": "/health",
+                    "status_code": 200,
+                }
+            ]
+        },
+        headers={"Authorization": f"Bearer {token.token}"},
+    )
+
+    assert response.status_code == 202
+    assert response.json() == {
+        "accepted": 1,
+        "rejected": 0,
+        "monitored_domain_id": monitoring_domain.id,
+    }
+
+    with SessionLocal() as db:
+        stored = db.query(TrafficEvent).all()
+
+    assert len(stored) == 1
+    assert stored[0].path == "/health"
+
+
+def test_traffic_ingest_endpoint_rejects_invalid_premium_token(client):
+    response = client.post(
+        "/api/ingest/v1/traffic",
+        json={"events": []},
+        headers={"Authorization": "Bearer invalid-token"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Token de ingestao invalido."
 
 
 def test_history_endpoint_returns_items(client, monkeypatch):

@@ -1,70 +1,71 @@
 {% if monitoring_plus_offer and monitoring_plus_offer.show_offer %}
-<div class="premium-offer-card">
-  <div class="premium-offer-card__header">
-    <h3>🚨 Ative o Monitoring Plus</h3>
-    <p>
-      Receba alertas por e-mail quando detectarmos comportamento suspeito, 
-      picos de requisição e padrões de varredura no seu {{ monitoring_plus_offer.analysis_domain }}.
-    </p>
-  </div>
-  
-  <div class="premium-offer-card__form">
-    <form method="POST" action="/monitoring-plus/activate">
-      <input type="hidden" name="domain" value="{{ monitoring_plus_offer.analysis_domain }}">
-      
-      <div class="form-row">
-        <div class="form-group">
-          <label for="input_label">Nome para identificar (opcional)</label>
-          <input 
-            type="text" 
-            id="input_label" 
-            name="input_label" 
-            value="{{ monitoring_plus_offer.input_label }}" 
-            maxlength="255"
-            placeholder="ex: site principal">
-        </div>
-        
-        <div class="form-group">
-          <label for="monitoring_frequency">Frequência de monitoramento</label>
-          <select id="monitoring_frequency" name="monitoring_frequency">
-            {% for option in monitoring_frequency_options() %}
-              <option 
-                value="{{ option.value }}" 
-                {% if option.value == monitoring_plus_offer.monitoring_frequency %}selected{% endif %}>
-                {{ option.label }}
-              </option>
-            {% endfor %}
-          </select>
-        </div>
-      
-      <button type="submit" class="btn btn-primary btn-large">
-        <span>Ativar Monitoring Plus (14 dias grátis)</span>
-        <small>Cancelar quando quiser</small>
-      </button>
-    </form>
-  </div>
-  
-  <div class="premium-offer-card__features">
-    <div class="features-grid">
-      <div class="feature">
-        <span class="feature-icon">⚡</span>
-        <span>Detecção de varredura em tempo real</span>
+  <section class="premium-offer-card" aria-labelledby="monitoring-plus-offer-title">
+    <div class="premium-offer-card__intro">
+      <div>
+        <p class="eyebrow">Monitoring Plus</p>
+        <h2 id="monitoring-plus-offer-title">{{ monitoring_plus_offer.title }}</h2>
+        <p class="premium-offer-card__summary">{{ monitoring_plus_offer.summary }}</p>
       </div>
-      <div class="feature">
-        <span class="feature-icon">📊</span>
-        <span>Picos de tráfego anômalos</span>
+      <div class="premium-offer-card__meta">
+        <span>{{ monitoring_plus_offer.score_label }}</span>
+        <span>{{ monitoring_plus_offer.severity_label }}</span>
       </div>
-      <div class="feature">
-        <span class="feature-icon">🔒</span>
-        <span>Erros 5xx monitorados</span>
+    </div>
+
+    <div class="premium-offer-card__body">
+      <div class="premium-offer-card__panel">
+        {% if monitoring_plus_offer.requires_auth %}
+          <p class="premium-offer-card__panel-copy">
+            O painel premium exige autenticacao porque a assinatura e os tokens de ingestao
+            ficam vinculados ao seu workspace.
+          </p>
+          <div class="action-row">
+            <a href="{{ monitoring_plus_offer.auth_login_href }}" class="button button--primary">
+              {{ monitoring_plus_offer.auth_cta_label }}
+            </a>
+            <a href="{{ monitoring_plus_offer.auth_register_href }}" class="button button--secondary">
+              Criar conta
+            </a>
+          </div>
+        {% else %}
+          <form method="post" action="/monitoring-plus/activate" class="premium-offer-form">
+            <input type="hidden" name="domain" value="{{ monitoring_plus_offer.analysis_domain }}" />
+
+            <label for="monitoring-plus-input-label">Rotulo opcional</label>
+            <input
+              id="monitoring-plus-input-label"
+              name="input_label"
+              type="text"
+              maxlength="255"
+              value="{{ monitoring_plus_offer.input_label }}"
+              placeholder="Ex.: dominio principal"
+            />
+
+            <label for="monitoring-plus-frequency">Frequencia base do monitoramento</label>
+            <select id="monitoring-plus-frequency" name="monitoring_frequency">
+              {% for option in monitoring_plus_offer.frequency_options %}
+                <option value="{{ option.value }}" {% if option.value == monitoring_plus_offer.monitoring_frequency %}selected{% endif %}>
+                  {{ option.label }}
+                </option>
+              {% endfor %}
+            </select>
+
+            <button type="submit" class="button button--primary">
+              {{ monitoring_plus_offer.submit_label }}
+            </button>
+          </form>
+        {% endif %}
       </div>
-      <div class="feature">
-        <span class="feature-icon">📧</span>
-        <span>Alertas por e-mail automático</span>
-      </div>
-  </div>
-  
-  <div class="premium-offer-card__trial-note">
-    <small>✅ 14 dias de teste grátis. Sem cartão. Cancelamento automático.</small>
-  </div>
+
+      {% if monitoring_plus_offer.highlights %}
+        <ul class="premium-offer-list">
+          {% for item in monitoring_plus_offer.highlights %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+
+    <p class="premium-offer-card__note">{{ monitoring_plus_offer.trial_note }}</p>
+  </section>
 {% endif %}

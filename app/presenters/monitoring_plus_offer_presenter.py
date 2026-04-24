@@ -6,12 +6,20 @@ legivel e honesta, sem hype. Baseada em estado local sem dependencias externas.
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
+from app.core.config import settings
 from app.schemas.analysis import AnalysisResponse
 from app.services.monitoring_plus_service import MonitoringPlusService
-from app.utils.input_parser import normalize_target
 
 
 class MonitoringPlusOfferPresenter:
+    _FREQUENCY_OPTIONS = (
+        {"value": "daily", "label": "Diario"},
+        {"value": "weekly", "label": "Semanal"},
+        {"value": "monthly", "label": "Mensal"},
+    )
+
     def __init__(self, monitoring_plus_service: MonitoringPlusService | None = None):
         self.monitoring_plus_service = (
             monitoring_plus_service or MonitoringPlusService()
@@ -27,32 +35,62 @@ class MonitoringPlusOfferPresenter:
         normalized = analysis_result.normalized
         if normalized.target_type != "domain":
             return None
-        if user_id is None:
-            return None
-
-        try:
-            existing = self.monitoring_plus_service._find_monitored_domain(
+        offer_state = None
+        if user_id is not None:
+            offer_state = self.monitoring_plus_service.get_offer_state(
                 user_id=user_id,
                 domain=normalized.analysis_domain,
             )
-            if existing is not None:
-                return None  # Ja tem Monitoring Plus ativo
-        except Exception:
-            pass
+            if offer_state.is_entitled:
+                return None
+
+        default_label = normalized.original
+        if default_label == normalized.analysis_domain:
+            default_label = ""
+
+        requires_auth = user_id is None
+        is_reactivation = (
+            offer_state is not None
+            and offer_state.monitored_domain_id is not None
+        )
+        login_next = quote("/monitoring-plus", safe="/")
 
         return {
             "analysis_domain": normalized.analysis_domain,
-            "input_label": normalized.original,
-            "score": analysis_result.score,
-            "severity": analysis_result.severity,
-            "monitoring_frequency": "daily",  # padrao
+            "input_label": default_label,
+            "score_label": f"Score atual: {analysis_result.score}",
+            "severity_label": f"Severidade atual: {analysis_result.severity}",
+            "monitoring_frequency": "daily",
+            "frequency_options": self.monitoring_frequency_options(),
             "show_offer": True,
+            "requires_auth": requires_auth,
+            "title": (
+                f"{'Reative' if is_reactivation else 'Ative'} o Monitoring Plus para {normalized.analysis_domain}"
+            ),
+            "summary": (
+                "O diagnostico acima continua separado. O Monitoring Plus usa "
+                "telemetria enviada pelo seu edge ou aplicacao para sinalizar "
+                "picos, varredura, erros 5xx e User-Agents suspeitos."
+            ),
+            "highlights": [
+                "Cria um painel tecnico por dominio com incidentes e estado da assinatura.",
+                "A deteccao depende da telemetria recebida. Sem ingestao, nao ha incidentes para analisar.",
+                f"Teste previsto: {settings.monitoring_plus_trial_days} dias.",
+            ],
+            "submit_label": (
+                "Reativar teste tecnico"
+                if is_reactivation
+                else "Ativar teste tecnico"
+            ),
+            "auth_login_href": f"/auth/login?next={login_next}",
+            "auth_register_href": f"/auth/register?next={login_next}",
+            "auth_cta_label": "Entrar para ativar",
+            "trial_note": (
+                "Sem regra de deteccao no navegador: a analise continua publica e "
+                "o monitoramento premium so ganha dados apos a ingestao."
+            ),
         }
 
     @staticmethod
     def monitoring_frequency_options() -> list[dict]:
-        return [
-            {"value": "daily", "label": "Diario"},
-            {"value": "weekly", "label": "Semanal"},
-            {"value": "monthly", "label": "Mensal"},
-        ]
+        return list(MonitoringPlusOfferPresenter._FREQUENCY_OPTIONS)

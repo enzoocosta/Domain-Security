@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("DSC_MONITORING_SCHEDULER_ENABLED", "false")
+os.environ.setdefault("DSC_MONITORING_PLUS_SCHEDULER_ENABLED", "false")
 os.environ.setdefault("DSC_SESSION_SECRET", "test-session-secret")
 
 from app.db.base import Base

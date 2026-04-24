@@ -23,8 +23,8 @@
     </section>
   {% endif %}
 
-  {% call render_section_card("Resultado da analise", "Resumo executivo", report.executive.summary, "section-card--hero", report.executive.actions) %}
-    <div class="summary-hero">
+  {% call render_section_card("Resultado da analise", "Resumo executivo", report.executive.summary, "section-card--hero section-card--executive", report.executive.actions) %}
+    <div class="summary-hero result-hero-layout">
       <div class="summary-hero__copy">
         <p class="eyebrow-label">Dominio analisado</p>
         <h1>{{ report.executive.domain }}</h1>
@@ -44,7 +44,7 @@
       </aside>
     </div>
 
-    <div class="executive-grid">
+    <div class="executive-grid executive-grid--summary">
       {% for block in report.executive.blocks %}
         <article class="detail-card detail-card--executive">
           <div class="detail-card__header">
@@ -94,8 +94,10 @@
     </div>
   {% endcall %}
 
-  {% call render_section_card("Detalhamento do score", "Score", "Visao rapida por camada analisada para localizar os pontos mais fracos.") %}
-    <div class="metrics-grid">
+  {% include "partials/premium_offer_card.html" %}
+
+  {% call render_section_card("Detalhamento do score", "Score", "Visao rapida por camada analisada para localizar os pontos mais fracos.", "section-card--score") %}
+    <div class="metrics-grid metrics-grid--score">
       {% for metric in report.score_breakdown %}
         {{ render_metric_card(metric.label, metric.value, metric.tone, metric.detail) }}
       {% endfor %}
@@ -185,11 +187,11 @@
   {% endcall %}
 
   {% for section in report.technical_sections %}
-    {% call render_section_card(section.title, "Secao tecnica", section.description, "", None, section.id) %}
+    {% call render_section_card(section.title, "Secao tecnica", section.description, "section-card--technical", None, section.id) %}
       {% if section.cards %}
         <div class="technical-grid">
           {% for card in section.cards %}
-            <article class="detail-card">
+            <article class="detail-card detail-card--technical">
               <div class="detail-card__header">
                 <div>
                   <h3>{{ card.title }}</h3>
@@ -210,7 +212,7 @@
 
               {% if card.lists %}
                 {% for list_block in card.lists %}
-                  <div class="list-block">
+                  <div class="list-block list-block--technical">
                     <p class="list-block__title">{{ list_block.label }}</p>
                     <ul class="bullet-list">
                       {% for item in list_block["items"] %}

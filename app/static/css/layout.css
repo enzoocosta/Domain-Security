@@ -3,9 +3,10 @@
 }
 
 .page-shell {
-  width: var(--page-width);
+  width: 100%;
+  max-width: calc(var(--page-width) + (var(--page-gutter) * 2));
   margin: 0 auto;
-  padding: 1.5rem 0 4.5rem;
+  padding: 1.5rem var(--page-gutter) 4.5rem;
   display: grid;
   gap: 1.5rem;
 }
@@ -19,8 +20,12 @@
 
 .site-header__inner,
 .site-footer__inner {
-  width: var(--page-width);
+  width: 100%;
+  max-width: calc(var(--page-width) + (var(--page-gutter) * 2));
   margin: 0 auto;
+  padding-left: var(--page-gutter);
+  padding-right: var(--page-gutter);
+  box-sizing: border-box;
 }
 
 .site-header__inner {
@@ -29,11 +34,11 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1rem;
-  border: 1px solid rgba(229, 234, 242, 0.85);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--surface-overlay);
   backdrop-filter: blur(16px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--header-shadow);
 }
 
 .site-header__actions,
@@ -84,7 +89,7 @@
   justify-content: space-between;
   gap: 1.25rem;
   align-items: flex-start;
-  padding: 1.85rem 2rem 0;
+  padding: 1.7rem 1.85rem 0;
 }
 
 .section-card__header h2 {
@@ -103,6 +108,7 @@
 .section-card__subtitle {
   max-width: 60rem;
   color: var(--text-muted);
+  line-height: 1.65;
 }
 
 .section-card__actions {
@@ -112,17 +118,17 @@
 }
 
 .section-card__body {
-  padding: 1.5rem 2rem 2rem;
+  padding: 1.45rem 1.85rem 1.9rem;
 }
 
 .metrics-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .metrics-grid--compact {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .technical-grid,
@@ -171,12 +177,18 @@
     width: 100%;
   }
 
+  .site-nav a {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
   .site-header__actions {
     width: 100%;
   }
 
   .site-header__actions .button,
-  .site-header__actions .inline-form {
+  .site-header__actions .inline-form,
+  .site-header__actions .theme-toggle {
     width: 100%;
   }
 

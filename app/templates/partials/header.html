@@ -11,11 +11,23 @@
     <nav class="site-nav" aria-label="Navegacao principal">
       <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Analise publica</a>
       <a href="/monitoring" class="{% if request.url.path.startswith('/monitoring') %}is-active{% endif %}">Monitoramento</a>
+      <a href="/monitoring-plus" class="{% if request.url.path.startswith('/monitoring-plus') %}is-active{% endif %}">Monitoring Plus</a>
       <a href="/discovery" class="{% if request.url.path.startswith('/discovery') %}is-active{% endif %}">Asset discovery</a>
       <a href="/docs" class="{% if request.url.path.startswith('/docs') %}is-active{% endif %}">API docs</a>
     </nav>
 
     <div class="site-header__actions">
+      <button
+        type="button"
+        class="theme-toggle"
+        id="theme-toggle"
+        aria-label="Alternar tema"
+        aria-pressed="false"
+      >
+        <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true">☀</span>
+        <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true">☾</span>
+        <span class="theme-toggle__label">Tema</span>
+      </button>
       {% if request.state.user_email %}
         <span class="user-chip">{{ request.state.user_email }}</span>
         <form method="post" action="/auth/logout" class="inline-form">

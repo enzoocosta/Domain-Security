@@ -9,10 +9,10 @@ from app.api.routes.error_utils import get_http_status_code
 from app.core.config import settings
 from app.core.exceptions import DomainSecurityError
 from app.presenters import ReportPresenter, configure_template_filters
+from app.presenters.monitoring_plus_offer_presenter import MonitoringPlusOfferPresenter
 from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.analysis_service import DomainAnalysisService
 from app.services.auth_service import AuthenticationService
-from app.presenters.monitoring_plus_offer_presenter import MonitoringPlusOfferPresenter
 
 router = APIRouter(include_in_schema=False)
 templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
@@ -66,16 +66,12 @@ def analyze_from_form(
         submitted_target=target,
         analyzed_at=datetime.now(tz=UTC),
     )
-    
-    # Monitoring Plus offer
     current_user = auth_service.get_user_session(request)
-    monitoring_plus_offer = None
-    if current_user:
-        monitoring_plus_offer = offer_presenter.prepare_offer_data(
-            analysis_result=result,
-            user_id=current_user.id,
-        )
-    
+    monitoring_plus_offer = offer_presenter.prepare_offer_data(
+        analysis_result=result,
+        user_id=current_user.id if current_user else None,
+    )
+
     context = {
         "request": request,
         "page_title": "Resultado da Analise",

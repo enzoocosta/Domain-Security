@@ -7,13 +7,15 @@ here.
 """
 
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.api.routes.error_utils import get_http_status_code
 from app.core.config import settings
-from app.core.exceptions import DomainSecurityError
+from app.core.exceptions import AuthorizationError, DomainSecurityError
 from app.presenters import configure_template_filters
 from app.schemas.monitoring_plus import MonitoringPlusActivationInput
 from app.services.auth_service import AuthenticationService
@@ -62,14 +64,7 @@ def activate_monitoring_plus(
             request,
             user_id=current_user.id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-    except Exception as exc:  # pragma: no cover - defensive guard
-        return _render_dashboard(
-            request,
-            user_id=current_user.id,
-            error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
 
     return RedirectResponse(
@@ -120,7 +115,7 @@ def cancel_subscription(request: Request, monitored_domain_id: int) -> HTMLRespo
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
     return RedirectResponse(
         url=f"/monitoring-plus/domains/{monitored_domain_id}",
@@ -148,7 +143,7 @@ def restart_trial(request: Request, monitored_domain_id: int) -> HTMLResponse:
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
     return RedirectResponse(
         url=f"/monitoring-plus/domains/{monitored_domain_id}",
@@ -182,7 +177,7 @@ def resolve_incident(
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
     return RedirectResponse(
         url=f"/monitoring-plus/domains/{monitored_domain_id}",
@@ -216,7 +211,7 @@ def create_ingest_token(
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
     return RedirectResponse(
         url=(
@@ -253,7 +248,7 @@ def revoke_ingest_token(
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             error=str(exc),
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=get_http_status_code(exc),
         )
     return RedirectResponse(
         url=f"/monitoring-plus/domains/{monitored_domain_id}",
@@ -299,12 +294,17 @@ def _render_domain_detail(
         detail = monitoring_plus_service.get_domain_detail(
             user_id=user_id, monitored_domain_id=monitored_domain_id
         )
+    except AuthorizationError:
+        return RedirectResponse(
+            url="/monitoring-plus",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
     except DomainSecurityError as exc:
         return _render_dashboard(
             request,
             user_id=user_id,
             error=str(exc),
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=get_http_status_code(exc),
         )
     return templates.TemplateResponse(
         request=request,
@@ -315,6 +315,7 @@ def _render_domain_detail(
             "page_name": "monitoring_plus",
             "detail": detail,
             "new_token": new_token,
+            "ingest_endpoint": str(request.url_for("ingest_traffic")),
             "error": error,
         },
         status_code=status_code,
@@ -322,5 +323,5 @@ def _render_domain_detail(
 
 
 def _redirect_to_login(next_path: str) -> RedirectResponse:
-    target = f"/auth/login?next={next_path}"
+    target = f"/auth/login?next={quote(next_path, safe='/')}"
     return RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)

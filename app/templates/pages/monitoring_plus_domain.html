@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% from "partials/section_card.html" import render_section_card %}
+{% from "partials/metric_card.html" import render_metric_card %}
+
+{% block content %}
+  {% call render_section_card(detail.normalized_domain, "Dominio premium", detail.input_label or "Visao tecnica do dominio premium.", "", None) %}
+    {% if error %}
+      <div class="message message--error">{{ error }}</div>
+    {% endif %}
+    <div class="action-row section-actions-bottom">
+      <a href="/monitoring-plus" class="button button--ghost button--small">Voltar ao dashboard</a>
+      {% if detail.subscription and detail.subscription.is_entitled %}
+        <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/cancel" class="inline-form">
+          <button type="submit" class="button button--danger button--small">Cancelar assinatura local</button>
+        </form>
+      {% else %}
+        <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/restart-trial" class="inline-form">
+          <button type="submit" class="button button--secondary button--small">Reiniciar trial tecnico</button>
+        </form>
+      {% endif %}
+    </div>
+    <div class="metrics-grid">
+      {{ render_metric_card("Assinatura", detail.subscription.status | humanize_token if detail.subscription else "Sem assinatura", "neutral") }}
+      {{ render_metric_card("Cobertura", "Ativa" if detail.subscription and detail.subscription.is_entitled else "Inativa", "success" if detail.subscription and detail.subscription.is_entitled else "warning") }}
+      {{ render_metric_card("Trial restante", detail.subscription.days_left_in_trial if detail.subscription and detail.subscription.days_left_in_trial is not none else "-", "info") }}
+      {{ render_metric_card("Eventos na ultima hora", detail.stats.events_last_hour, "neutral") }}
+      {{ render_metric_card("Eventos em 24h", detail.stats.events_last_24h, "neutral") }}
+      {{ render_metric_card("Incidentes abertos", detail.stats.open_incidents, "danger" if detail.stats.open_incidents else "neutral") }}
+      {{ render_metric_card("Ultimo evento", detail.stats.last_event_at | format_datetime if detail.stats.last_event_at else "nenhum", "neutral") }}
+    </div>
+  {% endcall %}
+
+  {% call render_section_card("Ingestao de trafego", "Tokens por dominio", "Cada token autentica um unico dominio premium no endpoint externo.") %}
+    {% if new_token %}
+      <div class="message message--success">
+        <strong>Token criado com sucesso.</strong>
+        <p>Copie agora. O valor completo nao sera exibido novamente.</p>
+        <code>{{ new_token }}</code>
+      </div>
+    {% endif %}
+
+    <div class="monitoring-plus-ingest-grid">
+      <article class="detail-card">
+        <div class="detail-card__header">
+          <div>
+            <h3>Endpoint de ingestao</h3>
+            <p>Use um token por dominio e envie lotes pequenos.</p>
+          </div>
+        </div>
+        <div class="monitoring-plus-code-block">
+          <code>{{ ingest_endpoint }}</code>
+        </div>
+        <p class="detail-card__note">
+          Header aceito: <code>Authorization: Bearer &lt;token&gt;</code> ou <code>X-Ingest-Token</code>.
+        </p>
+      </article>
+
+      <article class="detail-card">
+        <div class="detail-card__header">
+          <div>
+            <h3>Novo token</h3>
+            <p>Rotule por origem para facilitar revogacao e auditoria.</p>
+          </div>
+        </div>
+        <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/ingest-tokens" class="form-layout">
+          <label for="token-name">Nome do token</label>
+          <input id="token-name" name="name" type="text" maxlength="100" placeholder="Ex.: edge-prod" required />
+          <button type="submit" class="button button--secondary">Gerar token</button>
+        </form>
+      </article>
+    </div>
+
+    {% if detail.ingest_tokens %}
+      <div class="timeline-list top-spacing">
+        {% for token in detail.ingest_tokens %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>{{ token.name }}</h3>
+                <p>{{ token.token_prefix }}...</p>
+              </div>
+              <span class="badge badge--{{ 'active' if token.is_active else 'neutral' }}">{{ 'Ativo' if token.is_active else 'Inativo' }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Criado em", token.created_at | format_datetime, "neutral") }}
+              {{ render_metric_card("Ultimo uso", token.last_used_at | format_datetime if token.last_used_at else "ainda nao usado", "neutral") }}
+            </div>
+            <div class="action-row">
+              <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/ingest-tokens/{{ token.id }}/revoke" class="inline-form">
+                <button type="submit" class="button button--ghost button--small">Revogar token</button>
+              </form>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% if detail.recent_incidents %}
+    {% call render_section_card("Incidentes recentes", "Deteccao", "Eventos detectados pelo pipeline premium, ordenados do mais novo para o mais antigo.") %}
+      <div class="timeline-list">
+        {% for incident in detail.recent_incidents %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>{{ incident.title }}</h3>
+                <p>{{ incident.description }}</p>
+              </div>
+              <span class="badge badge--{{ incident.status }}">{{ incident.status | humanize_token }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Tipo", incident.incident_type | humanize_token, "neutral") }}
+              {{ render_metric_card("Severidade", incident.severity | humanize_token, "warning" if incident.severity == 'medium' else 'danger') }}
+              {{ render_metric_card("Detectado em", incident.detected_at | format_datetime, "neutral") }}
+              {{ render_metric_card("Status de e-mail", incident.email_delivery_status | humanize_token, "neutral") }}
+            </div>
+            {% if incident.evidence %}
+              <div class="list-block">
+                <p class="list-block__title">Evidencias</p>
+                <ul class="bullet-list">
+                  {% for key, value in incident.evidence.items() %}
+                    <li>{{ key | humanize_token }}: {{ value }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+            {% if incident.status == "open" %}
+              <div class="action-row">
+                <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/incidents/{{ incident.id }}/resolve" class="inline-form">
+                  <button type="submit" class="button button--secondary button--small">Marcar como resolvido</button>
+                </form>
+              </div>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% endcall %}
+  {% else %}
+    {% call render_section_card("Incidentes recentes", "Deteccao", "Este bloco so fica vazio enquanto nao houver incidente aberto ou historico relevante.") %}
+      <div class="empty-state">
+        <h3>Nenhum incidente relevante ainda</h3>
+        <p>
+          {% if detail.stats.last_event_at %}
+            Ja existem eventos recebidos para este dominio, mas nenhuma regra abriu incidente ate agora.
+          {% else %}
+            Nenhum evento foi ingerido ainda para este dominio premium.
+          {% endif %}
+        </p>
+      </div>
+    {% endcall %}
+  {% endif %}
+{% endblock %}

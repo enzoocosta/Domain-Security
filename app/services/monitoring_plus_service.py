@@ -11,6 +11,7 @@ the scheduler. Web routes only read the resulting state.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -32,6 +33,13 @@ from app.schemas.monitoring_plus import (
 from app.services.billing_service import BillingService
 from app.services.monitoring_service import MonitoringService
 from app.services.premium_ingest_token_service import PremiumIngestTokenService
+
+
+@dataclass(frozen=True)
+class MonitoringPlusOfferState:
+    monitored_domain_id: int | None
+    subscription_status: str | None
+    is_entitled: bool
 
 
 class MonitoringPlusService:
@@ -94,6 +102,37 @@ class MonitoringPlusService:
             user_id=user_id,
             monitored_domain_id=monitored_domain_id,
         )
+
+    def get_offer_state(
+        self,
+        *,
+        user_id: int,
+        domain: str,
+    ) -> MonitoringPlusOfferState:
+        with self.session_factory() as db:
+            monitored_domain_id = db.scalar(
+                select(MonitoredDomain.id).where(
+                    MonitoredDomain.user_id == user_id,
+                    MonitoredDomain.normalized_domain == domain,
+                    MonitoredDomain.deleted_at.is_(None),
+                )
+            )
+            if monitored_domain_id is None:
+                return MonitoringPlusOfferState(
+                    monitored_domain_id=None,
+                    subscription_status=None,
+                    is_entitled=False,
+                )
+
+            subscription = self.billing_service.get_subscription_in_session(
+                db,
+                monitored_domain_id=int(monitored_domain_id),
+            )
+            return MonitoringPlusOfferState(
+                monitored_domain_id=int(monitored_domain_id),
+                subscription_status=subscription.status if subscription is not None else None,
+                is_entitled=self.billing_service.evaluate_entitlement(subscription),
+            )
 
     # -- dashboard reads ---------------------------------------------
 
