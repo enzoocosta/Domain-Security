@@ -47,4 +47,5 @@ class AuthSessionMiddleware(BaseHTTPMiddleware):
         request.state.auth_session = payload
         request.state.user_email = payload.get("email")
         request.state.user_id = payload.get("user_id")
+        request.state.user_role = payload.get("role", "client")
         return await call_next(request)

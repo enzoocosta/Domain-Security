@@ -31,6 +31,25 @@ def get_db() -> Generator[Session, None, None]:
 def _ensure_schema_compatibility(bind_engine) -> None:
     inspector = inspect(bind_engine)
     table_names = set(inspector.get_table_names())
+    if "users" in table_names:
+        _ensure_columns(
+            bind_engine,
+            "users",
+            {
+                "role": "VARCHAR(32) NOT NULL DEFAULT 'client'",
+            },
+        )
+        with bind_engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    UPDATE users
+                    SET role = 'client'
+                    WHERE role IS NULL OR role = ''
+                    """
+                )
+            )
+
     if "monitored_domains" in table_names:
         _ensure_columns(
             bind_engine,

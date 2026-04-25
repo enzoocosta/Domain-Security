@@ -7,6 +7,7 @@ from app.api.routes import discovery as discovery_route
 from app.api.routes import history as history_route
 from app.api.routes import report_web as report_web_route
 from app.api.routes import web as web_route
+from app.api.routes import wordpress_analysis as wordpress_analysis_route
 from app.db.models import TrafficEvent
 from app.db.session import SessionLocal
 from app.core.exceptions import DNSDomainNotFoundError
@@ -19,6 +20,16 @@ from app.schemas.analysis import (
     WebsiteTLSResult,
 )
 from app.schemas.history import DomainHistoryResponse, HistoryItem
+from app.schemas.wordpress import (
+    WordPressAnalysisOptions,
+    WordPressAnalysisResponse,
+    WordPressAnalysisSummary,
+    WordPressDetectionResult,
+    WordPressDetectionSignal,
+    WordPressItemAnalysis,
+    WordPressVersionDetection,
+    WordPressVulnerability,
+)
 from app.services.analysis_service import DomainAnalysisService
 from app.services.billing_service import BillingService
 from app.services.asset_discovery_service import AssetDiscoveryService
@@ -200,6 +211,60 @@ def _install_stub_discovery_service(monkeypatch) -> StubAmassRunner:
     return runner
 
 
+def _wordpress_analysis_response() -> WordPressAnalysisResponse:
+    return WordPressAnalysisResponse(
+        targetUrl="https://example.com/",
+        scannedUrl="https://example.com/",
+        siteConfirmed=True,
+        cacheHit=False,
+        detection=WordPressDetectionResult(
+            isWordPress=True,
+            confidence="confirmed",
+            signals=[
+                WordPressDetectionSignal(
+                    layer=1,
+                    name="Meta Generator",
+                    detected=True,
+                    value="WordPress 6.4.2",
+                )
+            ],
+            wordpressVersion="6.4.2",
+            versionHidden=False,
+        ),
+        versionDetection=WordPressVersionDetection(version="6.4.2", source="meta_generator"),
+        items=[
+            WordPressItemAnalysis(
+                slug="wordpress-core",
+                nome="WordPress Core",
+                tipo="core",
+                versaoDetectada="6.4.2",
+                vulnerabilidades=[
+                    WordPressVulnerability(
+                        id="CVE-2025-0001",
+                        titulo="Falha conhecida no core",
+                        severidade="high",
+                        cvssScore=8.1,
+                        cve="CVE-2025-0001",
+                        corrigidoNaVersao="> 6.4.2",
+                        referencia="https://www.wpvulnerability.net/core/6.4.2",
+                    )
+                ],
+                status="critico",
+                referencia="https://www.wpvulnerability.net/core/6.4.2",
+            )
+        ],
+        summary=WordPressAnalysisSummary(
+            totalItemsAnalisados=1,
+            totalVulnerabilidades=1,
+            vulnerabilidadesPorSeveridade={"critical": 0, "high": 1, "medium": 0, "low": 0},
+            scoreGeral=85,
+            classificacao="seguro",
+        ),
+        warnings=[],
+        progressSteps=["Carregando pagina principal...", "Consultando vulnerabilidades do core..."],
+    )
+
+
 def test_healthcheck(client):
     response = client.get("/api/v1/health")
 
@@ -212,6 +277,97 @@ def test_home_page_renders(client):
 
     assert response.status_code == 200
     assert "Domain Security Checker" in response.text
+
+
+def test_home_page_nav_shows_wordpress_and_hides_developer_items_for_client(client):
+    client.post(
+        "/auth/register",
+        data={"email": "client-nav@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "WordPress" in response.text
+    assert "Asset discovery" not in response.text
+    assert "API docs" not in response.text
+
+
+def test_home_page_nav_shows_developer_items_for_developer_role(client):
+    from app.services.auth_service import AuthenticationService
+
+    auth_service = AuthenticationService()
+    auth_service.register_user("developer-nav@example.com", "supersecret", role="developer")
+    client.post(
+        "/auth/login",
+        data={"email": "developer-nav@example.com", "password": "supersecret"},
+        follow_redirects=True,
+    )
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "WordPress" in response.text
+    assert "Asset discovery" in response.text
+    assert "API docs" in response.text
+
+
+def test_wordpress_page_renders_selector_with_technical_and_common_modes(client):
+    response = client.get("/wordpress")
+
+    assert response.status_code == 200
+    assert "Verifique a seguranca do seu site WordPress" in response.text
+    assert "Sou usuario comum" in response.text
+    assert "Sou tecnico de TI" in response.text
+    assert "Verificar meu site agora" in response.text
+    assert "O que fazer?" not in response.text
+    assert "Iniciar Analise Tecnica" in response.text
+    assert "Verificar versao do WordPress exposta" in response.text
+    assert "Exportar PDF tecnico" in response.text
+    assert "Copiar JSON da analise" in response.text
+    assert "Gerar relatorio para o cliente" in response.text
+    assert "Verificar outro site" not in response.text
+    assert "WPScan DB" in response.text
+    assert "WordPress Hardening Codex" in response.text
+    assert 'id="wordpress-profile-panels"' in response.text
+    assert "hidden" in response.text
+
+
+def test_wordpress_analysis_endpoint_returns_backend_payload(client, monkeypatch):
+    class StubWordPressSecurityService:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, WordPressAnalysisOptions]] = []
+
+        def analyze_site(self, url: str, options: WordPressAnalysisOptions | None = None) -> WordPressAnalysisResponse:
+            self.calls.append((url, options or WordPressAnalysisOptions()))
+            return _wordpress_analysis_response()
+
+    service = StubWordPressSecurityService()
+    monkeypatch.setattr(wordpress_analysis_route, "service", service)
+
+    response = client.post(
+        "/api/v1/wordpress/analyze",
+        json={
+            "url": "https://example.com",
+            "options": {
+                "detect_core": True,
+                "detect_plugins": True,
+                "detect_themes": True,
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["siteConfirmed"] is True
+    assert payload["detection"]["isWordPress"] is True
+    assert payload["detection"]["confidence"] == "confirmed"
+    assert payload["versionDetection"]["version"] == "6.4.2"
+    assert payload["items"][0]["slug"] == "wordpress-core"
+    assert payload["items"][0]["vulnerabilidades"][0]["cve"] == "CVE-2025-0001"
+    assert payload["summary"]["scoreGeral"] == 85
+    assert service.calls[0][0] == "https://example.com"
 
 
 def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, monkeypatch):

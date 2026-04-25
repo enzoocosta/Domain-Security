@@ -1,17 +1,19 @@
 @page {
   size: A4;
-  margin: 1.4cm;
+  margin: 1.25cm;
 }
 
 :root {
-  --ink: #122033;
-  --muted: #5f6e7e;
-  --border: #d6dde5;
-  --panel: #f5f7fa;
-  --accent: #103b73;
-  --success: #1f6f43;
-  --warning: #915b00;
-  --danger: #9b2438;
+  --ink: #0f172a;
+  --muted: #475569;
+  --line: #d7e3f3;
+  --panel: #f8fbff;
+  --panel-strong: #eef4ff;
+  --accent: #0f4c81;
+  --accent-strong: #1d4ed8;
+  --success: #0f766e;
+  --warning: #b45309;
+  --danger: #dc2626;
 }
 
 * {
@@ -21,9 +23,9 @@
 body {
   margin: 0;
   color: var(--ink);
-  font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
   font-size: 10pt;
-  line-height: 1.45;
+  line-height: 1.55;
 }
 
 h1,
@@ -35,93 +37,101 @@ ul {
 }
 
 ul {
-  padding-left: 1.1rem;
+  padding-left: 1.05rem;
 }
 
 .hero,
 .section {
-  margin-bottom: 1.1cm;
+  margin-bottom: 0.95cm;
 }
 
 .hero {
-  padding: 0.8cm;
-  border: 1px solid var(--border);
-  background: linear-gradient(135deg, #f8fafc 0%, #eef4fb 100%);
+  padding: 0.85cm;
+  border: 1px solid #cfe1ff;
+  border-radius: 20px;
+  background: linear-gradient(150deg, #0a1428 0%, #102341 72%, #0f4c81 100%);
+  color: #ffffff;
 }
 
 .hero__brand,
 .eyebrow {
-  margin-bottom: 0.3cm;
-  color: var(--accent);
+  margin-bottom: 0.28cm;
+  color: #8be9ff;
   font-size: 8pt;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
 .hero__content {
-  display: table;
-  width: 100%;
+  display: flex;
+  gap: 0.5cm;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .hero__content > * {
-  display: table-cell;
-  vertical-align: top;
+  flex: 1 1 auto;
 }
 
 .hero__summary {
-  margin-top: 0.2cm;
-  margin-right: 0.5cm;
+  margin-top: 0.18cm;
+  margin-right: 0.4cm;
   font-size: 11pt;
-}
-
-.hero__meta,
-.muted,
-.section-note,
-.fact-card__kind {
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .hero__meta,
 .overview,
 .section__header p,
-.section-note {
-  margin-top: 0.25cm;
+.section-note,
+.muted,
+.fact-card__kind {
+  color: var(--muted);
+}
+
+.hero__meta {
+  margin-top: 0.22cm;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .score-card {
-  width: 4.5cm;
-  padding: 0.45cm;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  text-align: center;
+  width: 4.9cm;
+  padding: 0.42cm;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .score-card__label {
   display: block;
-  margin-bottom: 0.15cm;
-  color: var(--muted);
+  margin-bottom: 0.14cm;
+  color: rgba(255, 255, 255, 0.72);
   text-transform: uppercase;
   font-size: 8pt;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .score-card strong {
   display: block;
-  font-size: 20pt;
+  margin-bottom: 0.16cm;
+  font-size: 22pt;
+  line-height: 1;
 }
 
 .overview {
-  padding-top: 0.35cm;
-  border-top: 1px solid var(--border);
+  margin-top: 0.32cm;
+  padding-top: 0.28cm;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .section__header {
-  margin-bottom: 0.45cm;
+  margin-bottom: 0.35cm;
 }
 
 .section__header h2 {
-  margin-bottom: 0.12cm;
+  margin-bottom: 0.1cm;
   font-size: 16pt;
 }
 
@@ -130,25 +140,26 @@ ul {
 .list-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3cm;
+  gap: 0.28cm;
 }
 
 .info-card,
 .action-card,
 .fact-card,
 .list-card {
-  padding: 0.35cm;
-  border: 1px solid var(--border);
+  padding: 0.34cm;
+  border: 1px solid var(--line);
+  border-radius: 14px;
   background: #ffffff;
 }
 
 .info-card,
 .action-card {
-  flex: 1 1 7.2cm;
+  flex: 1 1 7.1cm;
 }
 
 .fact-card {
-  flex: 1 1 5cm;
+  flex: 1 1 4.8cm;
   background: var(--panel);
 }
 
@@ -162,16 +173,16 @@ ul {
   justify-content: space-between;
   gap: 0.25cm;
   align-items: flex-start;
-  margin-bottom: 0.2cm;
+  margin-bottom: 0.18cm;
 }
 
 .fact-card__label {
   display: block;
-  margin-bottom: 0.12cm;
+  margin-bottom: 0.1cm;
   color: var(--muted);
   font-size: 8pt;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .fact-card strong {
@@ -181,14 +192,14 @@ ul {
 
 .fact-card__kind {
   display: inline-block;
-  margin-top: 0.18cm;
+  margin-top: 0.16cm;
   font-size: 8pt;
   text-transform: uppercase;
 }
 
 .pill {
   display: inline-block;
-  padding: 0.08cm 0.22cm;
+  padding: 0.09cm 0.24cm;
   border-radius: 999px;
   font-size: 8pt;
   font-weight: 700;
@@ -196,7 +207,7 @@ ul {
 
 .pill--severity {
   color: #ffffff;
-  background: var(--accent);
+  background: var(--accent-strong);
 }
 
 .pill--danger {
@@ -210,10 +221,10 @@ ul {
 }
 
 .stack > * + * {
-  margin-top: 0.3cm;
+  margin-top: 0.28cm;
 }
 
 .list-card ul,
 .section ul {
-  margin-top: 0.18cm;
+  margin-top: 0.16cm;
 }

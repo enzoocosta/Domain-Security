@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.exceptions import AuthenticationError, AuthorizationError, InputValidationError, ResourceConflictError
 from app.db.models import NotificationPreference, User
 from app.db.session import SessionLocal
-from app.schemas.auth import UserLoginInput, UserRegistrationInput, UserSession
+from app.schemas.auth import UserLoginInput, UserRegistrationInput, UserRole, UserSession
 
 
 class AuthenticationService:
@@ -27,11 +27,12 @@ class AuthenticationService:
     def __init__(self, session_factory: Callable[[], Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
 
-    def register_user(self, email: str, password: str) -> UserSession:
+    def register_user(self, email: str, password: str, role: UserRole = "client") -> UserSession:
         try:
             payload = UserRegistrationInput(email=email, password=password)
         except ValidationError as exc:
             raise InputValidationError(str(exc.errors()[0]["msg"])) from exc
+        validated_role = self._validate_role(role)
         with self.session_factory() as db:
             existing = self._get_user_by_email(db, payload.email)
             if existing is not None:
@@ -40,6 +41,7 @@ class AuthenticationService:
             user = User(
                 email=payload.email,
                 password_hash=self._hash_password(payload.password),
+                role=validated_role,
                 is_active=True,
                 created_at=self._utcnow(),
                 updated_at=self._utcnow(),
@@ -89,7 +91,10 @@ class AuthenticationService:
     def apply_login(self, response: Response, user: UserSession) -> None:
         response.set_cookie(
             key=SESSION_COOKIE_NAME,
-            value=encode_session_cookie({"user_id": user.id, "email": user.email}, settings.session_secret),
+            value=encode_session_cookie(
+                {"user_id": user.id, "email": user.email, "role": user.role},
+                settings.session_secret,
+            ),
             max_age=settings.session_max_age_seconds,
             httponly=True,
             samesite="lax",
@@ -155,6 +160,7 @@ class AuthenticationService:
         return UserSession(
             id=user.id,
             email=user.email,
+            role=user.role,
             is_active=user.is_active,
             created_at=user.created_at,
         )
@@ -162,3 +168,10 @@ class AuthenticationService:
     @staticmethod
     def _utcnow() -> datetime:
         return datetime.now(tz=UTC)
+
+    @staticmethod
+    def _validate_role(role: str) -> UserRole:
+        normalized = str(role).strip().lower()
+        if normalized not in {"client", "developer", "admin"}:
+            raise InputValidationError("Perfil de usuario invalido.")
+        return normalized  # type: ignore[return-value]

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-theme="light">
+<html lang="pt-BR" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,15 +14,10 @@
         var root = document.documentElement;
         try {
           var stored = localStorage.getItem(storageKey);
-          var preferred =
-            stored ||
-            (window.matchMedia &&
-            window.matchMedia("(prefers-color-scheme: dark)").matches
-              ? "dark"
-              : "light");
+          var preferred = stored || "dark";
           root.setAttribute("data-theme", preferred);
         } catch (error) {
-          root.setAttribute("data-theme", "light");
+          root.setAttribute("data-theme", "dark");
         }
       })();
     </script>
@@ -33,6 +28,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='css/pages/home.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/pages/result.css') }}" />
     <link rel="stylesheet" href="{{ url_for('static', path='css/pages/monitoring_plus.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', path='css/pages/wordpress.css') }}" />
   </head>
   <body class="app-body page-{{ page_name or 'default' }}">
     <div class="app-background" aria-hidden="true"></div>
@@ -44,5 +40,6 @@
       {% include "partials/footer.html" %}
     </div>
     <script src="{{ url_for('static', path='js/theme.js') }}" defer></script>
+    <script src="{{ url_for('static', path='js/wordpress-selector.js') }}" defer></script>
   </body>
 </html>

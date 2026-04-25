@@ -39,6 +39,20 @@ def home(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/wordpress", response_class=HTMLResponse)
+def wordpress_page(request: Request) -> HTMLResponse:
+    context = {
+        "request": request,
+        "page_title": "WordPress Security",
+        "page_name": "wordpress",
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/wordpress.html",
+        context=context,
+    )
+
+
 @router.post("/analyze", response_class=HTMLResponse)
 def analyze_from_form(
     request: Request,

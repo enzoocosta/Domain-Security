@@ -1,19 +1,22 @@
 <header class="site-header">
   <div class="site-header__inner">
     <a href="/" class="brand">
-      <span class="brand__mark">DS</span>
-      <span class="brand__copy">
-        <span class="brand__title">Domain Security Checker</span>
-        <span class="brand__subtitle">Enterprise security SaaS</span>
-      </span>
+      <img
+        src="{{ url_for('static', path='img/logo.svg') }}"
+        alt="Domain Security Checker"
+        class="brand__logo"
+      >
     </a>
 
     <nav class="site-nav" aria-label="Navegacao principal">
       <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Analise publica</a>
       <a href="/monitoring" class="{% if request.url.path.startswith('/monitoring') %}is-active{% endif %}">Monitoramento</a>
       <a href="/monitoring-plus" class="{% if request.url.path.startswith('/monitoring-plus') %}is-active{% endif %}">Monitoring Plus</a>
-      <a href="/discovery" class="{% if request.url.path.startswith('/discovery') %}is-active{% endif %}">Asset discovery</a>
-      <a href="/docs" class="{% if request.url.path.startswith('/docs') %}is-active{% endif %}">API docs</a>
+      <a href="/wordpress" class="{% if request.url.path.startswith('/wordpress') %}is-active{% endif %}">WordPress</a>
+      {% if request.state.user_role in ['developer', 'admin'] %}
+        <a href="/discovery" class="{% if request.url.path.startswith('/discovery') %}is-active{% endif %}">Asset discovery</a>
+        <a href="/docs" class="{% if request.url.path.startswith('/docs') %}is-active{% endif %}">API docs</a>
+      {% endif %}
     </nav>
 
     <div class="site-header__actions">

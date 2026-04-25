@@ -11,6 +11,7 @@ from app.api.routes.monitoring_plus_web import router as monitoring_plus_web_rou
 from app.api.routes.monitoring_web import router as monitoring_web_router
 from app.api.routes.report_web import router as report_web_router
 from app.api.routes.traffic_ingest import router as traffic_ingest_router
+from app.api.routes.wordpress_analysis import router as wordpress_analysis_router
 from app.api.routes.web import router as public_web_router
 
 api_router = APIRouter()
@@ -18,6 +19,7 @@ api_router.include_router(health_router)
 api_router.include_router(history_router)
 api_router.include_router(analysis_router)
 api_router.include_router(discovery_router)
+api_router.include_router(wordpress_analysis_router)
 
 external_api_router = APIRouter()
 external_api_router.include_router(external_monitoring_router)

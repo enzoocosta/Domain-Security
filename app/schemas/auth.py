@@ -1,11 +1,15 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
+
+UserRole = Literal["client", "developer", "admin"]
 
 
 class UserSession(BaseModel):
     id: int
     email: str
+    role: UserRole
     is_active: bool
     created_at: datetime
 

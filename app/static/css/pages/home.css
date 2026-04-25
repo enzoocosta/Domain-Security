@@ -1,33 +1,58 @@
+.page-home .page-shell {
+  gap: 2rem;
+  padding-top: 1.45rem;
+}
+
 .home-hero {
   display: grid;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
 .home-hero__content {
   display: grid;
-  gap: 1.25rem;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 420px);
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 420px);
   align-items: stretch;
 }
 
 .home-hero__copy,
 .hero-form-card {
-  padding: 2rem;
-  border-radius: var(--radius-xl);
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border-radius: calc(var(--radius-xl) + 4px);
 }
 
 .home-hero__copy {
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--primary) 92%, transparent),
-      color-mix(in srgb, var(--primary-soft) 88%, transparent)
-    ),
-    var(--primary);
-  color: var(--text-inverse);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  background: var(--hero-panel);
   box-shadow: var(--shadow-md);
+}
+
+.home-hero__copy::before,
+.home-hero__copy::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.home-hero__copy::before {
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 84px 84px;
+  mask-image: linear-gradient(135deg, rgba(0, 0, 0, 0.6), transparent 70%);
+  opacity: 0.55;
+}
+
+.home-hero__copy::after {
+  inset: auto -7rem -8rem auto;
+  width: 20rem;
+  height: 20rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 212, 255, 0.24), transparent 62%);
+  filter: blur(10px);
 }
 
 .home-hero__copy > * {
@@ -35,56 +60,46 @@
   z-index: 1;
 }
 
-.home-hero__logo {
-  display: inline-block;
-  width: 220px;
-  max-width: 100%;
-  height: auto;
-  margin-bottom: 1rem;
-}
-
 .home-hero__copy h1,
 .home-hero__copy p,
 .home-hero__copy .eyebrow {
-  color: inherit;
+  color: #f9fafb;
+}
+
+.home-hero__copy h1 {
+  max-width: 12ch;
 }
 
 .home-hero__lead {
   max-width: 40rem;
-  color: color-mix(in srgb, var(--text-inverse) 82%, transparent);
-  font-size: 1.05rem;
-}
-
-.home-hero__copy::after {
-  content: "";
-  position: absolute;
-  inset: auto -6rem -5rem auto;
-  width: 14rem;
-  height: 14rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 24%, transparent);
-  filter: blur(6px);
+  color: rgba(249, 250, 251, 0.82);
+  font-size: clamp(1rem, 0.9rem + 0.45vw, 1.14rem);
 }
 
 .hero-form-card {
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  border: 1px solid var(--border);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-sm);
+}
+
+.hero-form-card .surface-label,
+.hero-form-card h2 {
+  margin-bottom: 0.65rem;
 }
 
 .hero-proof-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.hero-proof-grid .metric-card {
+  min-height: 0;
 }
 
 .feature-card,
 .trust-card {
   background: var(--card-gradient);
-}
-
-.feature-card p,
-.trust-card p {
-  color: var(--text-muted);
-  margin-bottom: 0;
 }
 
 @media (max-width: 960px) {
@@ -96,10 +111,6 @@
 @media (max-width: 640px) {
   .home-hero__copy,
   .hero-form-card {
-    padding: 1.4rem;
-  }
-
-  .home-hero__logo {
-    width: 180px;
+    padding: 1.35rem;
   }
 }
