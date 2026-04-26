@@ -53,6 +53,20 @@ def wordpress_page(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/wordpress/relatorio-tecnico", response_class=HTMLResponse)
+def wordpress_technical_report_page(request: Request) -> HTMLResponse:
+    context = {
+        "request": request,
+        "page_title": "Relatorio Tecnico WordPress",
+        "page_name": "wordpress-technical-report",
+    }
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/wordpress_technical_report.html",
+        context=context,
+    )
+
+
 @router.post("/analyze", response_class=HTMLResponse)
 def analyze_from_form(
     request: Request,

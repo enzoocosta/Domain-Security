@@ -279,6 +279,15 @@ def test_home_page_renders(client):
     assert "Domain Security Checker" in response.text
 
 
+def test_base_template_uses_versioned_static_assets(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "css/tokens.css?v=" in response.text
+    assert "js/theme.js?v=" in response.text
+    assert "img/logo.svg?v=" in response.text
+
+
 def test_home_page_nav_shows_wordpress_and_hides_developer_items_for_client(client):
     client.post(
         "/auth/register",
@@ -324,14 +333,34 @@ def test_wordpress_page_renders_selector_with_technical_and_common_modes(client)
     assert "O que fazer?" not in response.text
     assert "Iniciar Analise Tecnica" in response.text
     assert "Verificar versao do WordPress exposta" in response.text
+    assert "Abrir relatorio tecnico completo" in response.text
     assert "Exportar PDF tecnico" in response.text
-    assert "Copiar JSON da analise" in response.text
+    assert "Copiar JSON" in response.text
     assert "Gerar relatorio para o cliente" in response.text
     assert "Verificar outro site" not in response.text
-    assert "WPScan DB" in response.text
-    assert "WordPress Hardening Codex" in response.text
+    assert "Top 5 vulnerabilidades principais" in response.text
+    assert "Pipeline de verificacao" in response.text
+    assert "Resultados tecnicos" not in response.text
+    assert 'id="secao-escolha"' in response.text
+    assert 'id="bloco-comum"' in response.text
+    assert 'id="bloco-tecnico"' in response.text
     assert 'id="wordpress-profile-panels"' in response.text
+    assert 'data-wp-tech-loader' in response.text
+    assert 'data-wp-tech-step-list' in response.text
     assert "hidden" in response.text
+
+
+def test_wordpress_technical_report_page_renders_empty_state_shell(client):
+    response = client.get("/wordpress/relatorio-tecnico")
+
+    assert response.status_code == 200
+    assert "Relatorio de Seguranca WordPress - Analise Tecnica Completa" in response.text
+    assert "Nenhum relatorio tecnico disponivel" in response.text
+    assert "Exportar PDF" in response.text
+    assert "Voltar a analise" in response.text
+    assert "Mapa de Risco" in response.text
+    assert "Itens Seguros" in response.text
+    assert "Recomendacoes" in response.text
 
 
 def test_wordpress_analysis_endpoint_returns_backend_payload(client, monkeypatch):

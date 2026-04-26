@@ -35,6 +35,7 @@
 
       <div class="section-card__body">
         <div
+          id="secao-escolha"
           class="wordpress-profile__grid"
           data-profile-grid
           role="list"
@@ -92,6 +93,7 @@
           aria-hidden="true"
         >
           <article
+            id="bloco-comum"
             class="profile-panel profile-panel--common"
             data-profile-panel="common"
             hidden
@@ -161,6 +163,7 @@
           </article>
 
           <article
+            id="bloco-tecnico"
             class="profile-panel profile-panel--technical"
             data-profile-panel="technical"
             hidden
@@ -210,20 +213,60 @@
             </form>
 
             <div class="wp-tech-results" data-wp-tech-results hidden>
-              <div class="wp-scan-loading" data-wp-tech-loading hidden>
+              <div class="wp-scan-loading wp-scan-loading--technical" data-wp-tech-loading hidden>
                 <div class="wp-scan-loading__header">
-                  <p class="eyebrow-label">Analise tecnica em andamento</p>
+                  <p class="eyebrow-label" data-wp-tech-phase-label>Analise tecnica em andamento</p>
                   <strong data-wp-tech-progress-label>Carregando pagina principal...</strong>
                 </div>
                 <div class="wp-scan-loading__bar">
                   <span data-wp-tech-progress-bar></span>
                 </div>
-                <div class="wp-scan-skeletons wp-scan-skeletons--table" aria-hidden="true">
-                  <span class="wp-scan-skeleton wp-scan-skeleton--large"></span>
-                  <span class="wp-scan-skeleton"></span>
-                  <span class="wp-scan-skeleton"></span>
-                  <span class="wp-scan-skeleton"></span>
-                  <span class="wp-scan-skeleton"></span>
+                <div class="wp-tech-loader" data-wp-tech-loader data-state="loading">
+                  <div class="wp-tech-loader__scene" aria-hidden="true">
+                    <div class="wp-tech-loader__radar">
+                      <span class="wp-tech-loader__radar-ring wp-tech-loader__radar-ring--1"></span>
+                      <span class="wp-tech-loader__radar-ring wp-tech-loader__radar-ring--2"></span>
+                      <span class="wp-tech-loader__radar-ring wp-tech-loader__radar-ring--3"></span>
+                      <span class="wp-tech-loader__radar-sweep"></span>
+                      <span class="wp-tech-loader__radar-node wp-tech-loader__radar-node--1"></span>
+                      <span class="wp-tech-loader__radar-node wp-tech-loader__radar-node--2"></span>
+                      <span class="wp-tech-loader__radar-node wp-tech-loader__radar-node--3"></span>
+                      <span class="wp-tech-loader__radar-node wp-tech-loader__radar-node--4"></span>
+                      <span class="wp-tech-loader__radar-node wp-tech-loader__radar-node--5"></span>
+                      <span class="wp-tech-loader__core"></span>
+                    </div>
+                    <div class="wp-tech-loader__matrix">
+                      <span class="wp-tech-loader__matrix-row wp-tech-loader__matrix-row--wide"></span>
+                      <span class="wp-tech-loader__matrix-row"></span>
+                      <span class="wp-tech-loader__matrix-row wp-tech-loader__matrix-row--medium"></span>
+                      <span class="wp-tech-loader__matrix-row"></span>
+                    </div>
+                  </div>
+
+                  <div class="wp-tech-loader__status">
+                    <div class="wp-tech-loader__status-live">
+                      <div class="wp-tech-loader__status-top">
+                        <span class="surface-label">Pipeline de verificacao</span>
+                        <span class="wp-tech-loader__live-badge">Ao vivo</span>
+                      </div>
+                      <div class="wp-tech-loader__step-list" data-wp-tech-step-list></div>
+                    </div>
+
+                    <div class="wp-tech-loader__status-complete">
+                      <span class="wp-tech-loader__success-mark" aria-hidden="true">
+                        <span class="wp-tech-loader__success-check"></span>
+                      </span>
+                      <strong data-wp-tech-complete-title>Analise consolidada</strong>
+                      <p data-wp-tech-complete-copy>
+                        Organizando indicadores tecnicos finais para exibir o resultado.
+                      </p>
+                      <div class="wp-tech-loader__metric-list">
+                        <span data-wp-tech-complete-items>0 itens</span>
+                        <span data-wp-tech-complete-vulnerabilities>0 vulnerabilidades</span>
+                        <span data-wp-tech-complete-score>Score 0</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -236,52 +279,33 @@
                     <h3 data-wp-tech-site-label>Alvo analisado</h3>
                     <p class="text-muted" data-wp-tech-summary-line></p>
                   </div>
-                  <div class="wp-tech-export">
-                    <button type="button" class="button button--secondary button--small" data-wp-export-pdf>
-                      Exportar PDF tecnico
-                    </button>
-                    <button type="button" class="button button--ghost button--small" data-wp-copy-json>
-                      Copiar JSON da analise
-                    </button>
-                    <button type="button" class="button button--secondary button--small" data-wp-generate-client-report>
-                      Gerar relatorio para o cliente
-                    </button>
-                  </div>
                 </div>
+
+                <section class="wp-tech-top-vulnerabilities" aria-labelledby="wp-tech-top-title">
+                  <div class="wp-tech-section-heading">
+                    <div>
+                      <p class="eyebrow-label">Top 5 vulnerabilidades principais</p>
+                      <h4 id="wp-tech-top-title">Itens que exigem prioridade tecnica</h4>
+                    </div>
+                  </div>
+                  <div class="wp-tech-vulnerability-list" data-wp-tech-top-vulnerabilities></div>
+                </section>
 
                 <div class="wp-tech-overview" data-wp-tech-overview></div>
 
-                <div class="wp-tech-table" role="table" aria-label="Resultados tecnicos">
-                  <div class="wp-tech-table__head" role="rowgroup">
-                    <div role="row" class="wp-tech-table__row wp-tech-table__row--head">
-                      <span role="columnheader">Item</span>
-                      <span role="columnheader">Tipo</span>
-                      <span role="columnheader">Versao</span>
-                      <span role="columnheader">Status</span>
-                      <span role="columnheader">Vulnerabilidade</span>
-                      <span role="columnheader">CVE</span>
-                      <span role="columnheader">CVSS</span>
-                      <span role="columnheader">Severidade</span>
-                      <span role="columnheader">Corrigido</span>
-                      <span role="columnheader">Referencia</span>
-                    </div>
-                  </div>
-                  <div class="wp-tech-table__body" role="rowgroup" data-wp-tech-table-body></div>
-                </div>
-
-                <div class="wp-tech-card-list" data-wp-tech-card-list></div>
-                <section class="wp-summary wp-summary--technical" data-wp-tech-summary></section>
-
-                <section class="wp-tech-references">
-                  <div class="profile-panel__header">
-                    <span class="surface-label">Referencias e recursos</span>
-                    <h4>Fontes para aprofundamento</h4>
-                  </div>
-                  <div class="wp-tech-references__links">
-                    <a href="https://wpscan.com/wordpresses" target="_blank" rel="noreferrer">WPScan DB</a>
-                    <a href="https://owasp.org/www-project-web-security-testing-guide/stable/6-Appendix/F-Leveraging_Dev_Tools/README" target="_blank" rel="noreferrer">OWASP WordPress Security Testing Guide</a>
-                    <a href="https://wordpress.org/documentation/article/hardening-wordpress/" target="_blank" rel="noreferrer">WordPress Hardening Codex</a>
-                  </div>
+                <section class="wp-tech-actions" aria-label="Acoes do relatorio tecnico">
+                  <button type="button" class="button button--ghost button--small" data-wp-open-technical-report>
+                    Abrir relatorio tecnico completo
+                  </button>
+                  <button type="button" class="button button--secondary button--small" data-wp-export-pdf>
+                    Exportar PDF tecnico
+                  </button>
+                  <button type="button" class="button button--ghost button--small" data-wp-copy-json>
+                    Copiar JSON
+                  </button>
+                  <button type="button" class="button button--secondary button--small" data-wp-generate-client-report>
+                    Gerar relatorio para o cliente
+                  </button>
                 </section>
               </div>
             </div>

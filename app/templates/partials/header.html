@@ -2,7 +2,7 @@
   <div class="site-header__inner">
     <a href="/" class="brand">
       <img
-        src="{{ url_for('static', path='img/logo.svg') }}"
+        src="{{ static_asset(request, 'img/logo.svg') }}"
         alt="Domain Security Checker"
         class="brand__logo"
       >

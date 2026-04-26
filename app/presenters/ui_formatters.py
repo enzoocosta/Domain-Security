@@ -1,8 +1,12 @@
 from collections.abc import Iterable
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from fastapi.templating import Jinja2Templates
+
+from app.core.config import settings
 
 _EMPTY = object()
 
@@ -93,7 +97,23 @@ def configure_template_filters(templates: Jinja2Templates) -> Jinja2Templates:
     templates.env.filters["format_datetime"] = format_datetime
     templates.env.filters["yes_no"] = yes_no
     templates.env.filters["humanize_token"] = humanize_token
+    templates.env.globals["static_asset"] = static_asset
     return templates
+
+
+@lru_cache(maxsize=256)
+def _asset_version(path: str) -> str:
+    asset_path = settings.static_dir / Path(path)
+    try:
+        return str(asset_path.stat().st_mtime_ns)
+    except OSError:
+        return settings.app_version
+
+
+def static_asset(request: Any, path: str) -> str:
+    base_url = str(request.url_for("static", path=path))
+    separator = "&" if "?" in base_url else "?"
+    return f"{base_url}{separator}v={_asset_version(path)}"
 
 
 def is_blank(value: Any) -> bool:
