@@ -38,10 +38,14 @@ class TrafficIngestService:
     ) -> None:
         self.session_factory = session_factory or SessionLocal
         self.max_batch_size = (
-            max_batch_size if max_batch_size is not None else settings.monitoring_plus_ingest_max_batch
+            max_batch_size
+            if max_batch_size is not None
+            else settings.monitoring_plus_ingest_max_batch
         )
         self.retention_hours = (
-            retention_hours if retention_hours is not None else settings.monitoring_plus_event_retention_hours
+            retention_hours
+            if retention_hours is not None
+            else settings.monitoring_plus_event_retention_hours
         )
 
     def ingest_batch(

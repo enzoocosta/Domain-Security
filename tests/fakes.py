@@ -40,7 +40,9 @@ class StubDNSService:
             raise self.mx_exception
         return list(self.mx_records)
 
-    def get_txt_records(self, name: str, *, missing_on_nxdomain: bool = False) -> list[str]:
+    def get_txt_records(
+        self, name: str, *, missing_on_nxdomain: bool = False
+    ) -> list[str]:
         self.txt_call_count += 1
         exception = self.txt_exceptions.get(name)
         if exception is not None:
@@ -102,7 +104,9 @@ class StubAnalysisHistoryService:
         self.history_response = history_response
         self.record_call_count = 0
 
-    def record_analysis(self, result: AnalysisResponse, *, input_target: str) -> AnalysisResponse:
+    def record_analysis(
+        self, result: AnalysisResponse, *, input_target: str
+    ) -> AnalysisResponse:
         self.record_call_count += 1
         diff = self.diff or AnalysisDiffSummary(
             has_previous_snapshot=False,

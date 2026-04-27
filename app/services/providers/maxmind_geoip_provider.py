@@ -67,11 +67,6 @@ class MaxMindGeoIPProvider:
         notes: list[str] = [
             "Geolocalizacao de IP e aproximada e pode refletir borda, CDN, proxy ou provedor intermediario."
         ]
-        payload = GeoIPLookupResult(
-            available=False,
-            source=self.source_name,
-            notes=[],
-        )
 
         try:
             city_response = self._lookup_city(ip_address)
@@ -82,7 +77,9 @@ class MaxMindGeoIPProvider:
             return GeoIPLookupResult(
                 available=False,
                 source=self.source_name,
-                notes=["A consulta MaxMind falhou e a analise seguiu sem enriquecimento geografico."],
+                notes=[
+                    "A consulta MaxMind falhou e a analise seguiu sem enriquecimento geografico."
+                ],
                 confidence_note=str(exc),
             )
 
@@ -107,11 +104,11 @@ class MaxMindGeoIPProvider:
             self._safe_get(city_response, "traits.organization"),
         )
 
-        confidence_note = (
-            "Dados MaxMind podem retornar campos ausentes e nao identificam um endereco fisico exato."
-        )
+        confidence_note = "Dados MaxMind podem retornar campos ausentes e nao identificam um endereco fisico exato."
         if city_response is None:
-            notes.append("Nenhuma base City ou web service MaxMind respondeu com localizacao para este IP.")
+            notes.append(
+                "Nenhuma base City ou web service MaxMind respondeu com localizacao para este IP."
+            )
 
         country_name = self._safe_get(city_response, "country.name")
         country_code = self._safe_get(city_response, "country.iso_code")
@@ -122,15 +119,21 @@ class MaxMindGeoIPProvider:
         )
 
         return GeoIPLookupResult(
-            available=city_response is not None or asn_response is not None or isp_response is not None,
-            source=f"{self.source_name}:{'+'.join(source_parts)}" if source_parts else self.source_name,
+            available=city_response is not None
+            or asn_response is not None
+            or isp_response is not None,
+            source=f"{self.source_name}:{'+'.join(source_parts)}"
+            if source_parts
+            else self.source_name,
             country=country_name or country_code,
             country_name=country_name,
             country_code=country_code,
             region=self._safe_get(city_response, "subdivisions.most_specific.name"),
             city=self._safe_get(city_response, "city.name"),
             timezone=self._safe_get(city_response, "location.time_zone"),
-            asn=self._stringify_asn(self._safe_get(asn_response, "autonomous_system_number")),
+            asn=self._stringify_asn(
+                self._safe_get(asn_response, "autonomous_system_number")
+            ),
             asn_org=self._safe_get(asn_response, "autonomous_system_organization"),
             isp=self._safe_get(isp_response, "isp"),
             organization=organization,
@@ -205,7 +208,9 @@ class MaxMindGeoIPProvider:
             kwargs["host"] = self.host
 
         try:
-            with geoip2_webservice.Client(int(self.account_id), self.license_key, **kwargs) as client:
+            with geoip2_webservice.Client(
+                int(self.account_id), self.license_key, **kwargs
+            ) as client:
                 return client.city(ip_address)
         except Exception:  # pragma: no cover - optional dependency/runtime path
             return None
@@ -275,9 +280,22 @@ class MaxMindGeoIPProvider:
         if not combined:
             return None
 
-        if any(token in combined for token in ("cloud", "hosting", "cdn", "datacenter", "data center")):
+        if any(
+            token in combined
+            for token in ("cloud", "hosting", "cdn", "datacenter", "data center")
+        ):
             return "hosting"
-        if any(token in combined for token in ("residential", "broadband", "fiber", "cable", "wireless", "mobile")):
+        if any(
+            token in combined
+            for token in (
+                "residential",
+                "broadband",
+                "fiber",
+                "cable",
+                "wireless",
+                "mobile",
+            )
+        ):
             return "residential"
         if any(token in combined for token in ("business", "enterprise", "corporate")):
             return "business"

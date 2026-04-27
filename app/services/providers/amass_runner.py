@@ -67,7 +67,7 @@ class AmassRunner:
                 timeout=self.timeout_seconds,
                 check=False,
             )
-        except subprocess.TimeoutExpired as exc:
+        except subprocess.TimeoutExpired:
             return AssetDiscoveryResult(
                 provider=self.provider_name,
                 status="failed",
@@ -85,14 +85,21 @@ class AmassRunner:
             return AssetDiscoveryResult(
                 provider=self.provider_name,
                 status="failed",
-                error_message=(completed.stderr or completed.stdout or "Amass retornou erro sem resultados utilizaveis.").strip(),
+                error_message=(
+                    completed.stderr
+                    or completed.stdout
+                    or "Amass retornou erro sem resultados utilizaveis."
+                ).strip(),
             )
         if completed.returncode != 0:
             return AssetDiscoveryResult(
                 provider=self.provider_name,
                 status="partial",
                 assets=assets,
-                error_message=(completed.stderr or "Amass retornou parcialmente com codigo diferente de zero.").strip(),
+                error_message=(
+                    completed.stderr
+                    or "Amass retornou parcialmente com codigo diferente de zero."
+                ).strip(),
             )
         return AssetDiscoveryResult(
             provider=self.provider_name,
@@ -100,16 +107,20 @@ class AmassRunner:
             assets=assets,
         )
 
-    def _parse_assets(self, domain: str, stdout: str, stderr: str) -> list[DiscoveredAssetRecord]:
+    def _parse_assets(
+        self, domain: str, stdout: str, stderr: str
+    ) -> list[DiscoveredAssetRecord]:
         observed: dict[str, DiscoveredAssetRecord] = {}
         suffix = f".{domain.lower()}"
 
-        for line in (stdout.splitlines() + stderr.splitlines()):
+        for line in stdout.splitlines() + stderr.splitlines():
             candidate = self._extract_host(line, suffix=suffix, apex=domain.lower())
             if candidate is None:
                 continue
             if candidate not in observed:
-                observed[candidate] = DiscoveredAssetRecord(fqdn=candidate, source="amass")
+                observed[candidate] = DiscoveredAssetRecord(
+                    fqdn=candidate, source="amass"
+                )
 
         return sorted(observed.values(), key=lambda item: item.fqdn)
 

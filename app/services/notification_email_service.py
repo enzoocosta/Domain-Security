@@ -1,12 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
 from app.db.models import AlertEvent, MonitoredDomain, MonitoringRun
 from app.schemas.analysis import AnalysisResponse
-from app.services.email_delivery_service import EmailDeliveryService, EmailMessagePayload
+from app.services.email_delivery_service import (
+    EmailDeliveryService,
+    EmailMessagePayload,
+)
+
+
+@dataclass(frozen=True)
+class NotificationDispatchResult:
+    attempted: bool
+    delivered: bool
+    recipient_count: int
 
 
 class NotificationEmailService:
@@ -18,7 +29,9 @@ class NotificationEmailService:
         "alta": 2,
     }
 
-    def __init__(self, email_delivery_service: EmailDeliveryService | None = None) -> None:
+    def __init__(
+        self, email_delivery_service: EmailDeliveryService | None = None
+    ) -> None:
         self.email_delivery_service = email_delivery_service or EmailDeliveryService()
 
     def deliver_pending_alerts(
@@ -29,25 +42,40 @@ class NotificationEmailService:
         monitoring_run: MonitoringRun,
         analysis_result: AnalysisResponse,
         alert_events: list[AlertEvent],
-    ) -> None:
+    ) -> NotificationDispatchResult:
         pending_events = [
             item
             for item in alert_events
             if item.status == "open" and item.email_delivery_status == "pending"
         ]
         if not pending_events:
-            return
+            return NotificationDispatchResult(
+                attempted=False, delivered=False, recipient_count=0
+            )
 
         current_time = self._utcnow()
         user = monitored_domain.user
         preference = getattr(user, "notification_preference", None)
-        if user is None or not user.email or preference is None or not preference.email_alerts_enabled:
-            self._mark_events(pending_events, status="skipped", attempted_at=current_time)
-            return
+        recipients = self._resolve_recipients(monitored_domain=monitored_domain)
+        if (
+            user is None
+            or not user.email
+            or preference is None
+            or not preference.email_alerts_enabled
+            or not recipients
+        ):
+            self._mark_events(
+                pending_events, status="skipped", attempted_at=current_time
+            )
+            return NotificationDispatchResult(
+                attempted=False, delivered=False, recipient_count=len(recipients)
+            )
 
         payload = EmailMessagePayload(
-            recipient=user.email,
-            subject=self._build_subject(monitored_domain.normalized_domain, pending_events),
+            recipient=", ".join(recipients),
+            subject=self._build_subject(
+                monitored_domain.normalized_domain, pending_events
+            ),
             text_body=self._build_body(
                 monitored_domain=monitored_domain,
                 monitoring_run=monitoring_run,
@@ -63,7 +91,9 @@ class NotificationEmailService:
                 attempted_at=current_time,
                 sent_at=current_time,
             )
-            return
+            return NotificationDispatchResult(
+                attempted=True, delivered=True, recipient_count=len(recipients)
+            )
 
         failure_status = "failed" if send_result.attempted else "skipped"
         self._mark_events(
@@ -73,6 +103,11 @@ class NotificationEmailService:
             error=send_result.error,
         )
         db.flush()
+        return NotificationDispatchResult(
+            attempted=send_result.attempted,
+            delivered=False,
+            recipient_count=len(recipients),
+        )
 
     def _build_subject(self, domain: str, alert_events: list[AlertEvent]) -> str:
         highest = max(
@@ -89,8 +124,14 @@ class NotificationEmailService:
         analysis_result: AnalysisResponse,
         alert_events: list[AlertEvent],
     ) -> str:
-        changed_checks = [item.label for item in analysis_result.changes.changed_checks[:5]]
-        main_recommendation = analysis_result.recommendations[0] if analysis_result.recommendations else None
+        changed_checks = [
+            item.label for item in analysis_result.changes.changed_checks[:5]
+        ]
+        main_recommendation = (
+            analysis_result.recommendations[0]
+            if analysis_result.recommendations
+            else None
+        )
         lines = [
             "Um alerta de monitoramento foi gerado.",
             "",
@@ -129,6 +170,20 @@ class NotificationEmailService:
             event.email_last_attempt_at = attempted_at
             event.email_sent_at = sent_at
             event.email_last_error = error
+
+    @staticmethod
+    def _resolve_recipients(*, monitored_domain: MonitoredDomain) -> list[str]:
+        contacts = [
+            item.strip().lower()
+            for item in (monitored_domain.alert_contacts or [])
+            if item and item.strip()
+        ]
+        if contacts:
+            return contacts
+        user = monitored_domain.user
+        if user is None or not user.email:
+            return []
+        return [user.email.strip().lower()]
 
     @staticmethod
     def _format_datetime(value: datetime) -> str:

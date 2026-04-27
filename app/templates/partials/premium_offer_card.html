@@ -41,14 +41,22 @@
               placeholder="Ex.: dominio principal"
             />
 
-            <label for="monitoring-plus-frequency">Frequencia base do monitoramento</label>
-            <select id="monitoring-plus-frequency" name="monitoring_frequency">
+            <label for="monitoring-plus-frequency">Intervalo base do monitoramento</label>
+            <select id="monitoring-plus-frequency" name="check_interval_minutes">
               {% for option in monitoring_plus_offer.frequency_options %}
-                <option value="{{ option.value }}" {% if option.value == monitoring_plus_offer.monitoring_frequency %}selected{% endif %}>
+                <option value="{{ option.value }}" {% if option.value|int == monitoring_plus_offer.check_interval_minutes %}selected{% endif %}>
                   {{ option.label }}
                 </option>
               {% endfor %}
             </select>
+
+            <label for="monitoring-plus-alert-contacts">Contatos de alerta</label>
+            <textarea
+              id="monitoring-plus-alert-contacts"
+              name="alert_contacts"
+              rows="3"
+              placeholder="sec@example.com, ops@example.com"
+            ></textarea>
 
             <button type="submit" class="button button--primary">
               {{ monitoring_plus_offer.submit_label }}

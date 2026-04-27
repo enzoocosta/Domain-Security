@@ -41,7 +41,11 @@ class BillingService:
         trial_days: int | None = None,
     ) -> None:
         self.session_factory = session_factory or SessionLocal
-        self.trial_days = trial_days if trial_days is not None else settings.monitoring_plus_trial_days
+        self.trial_days = (
+            trial_days
+            if trial_days is not None
+            else settings.monitoring_plus_trial_days
+        )
 
     # -- public API ---------------------------------------------------
 
@@ -52,7 +56,9 @@ class BillingService:
         monitored_domain_id: int,
     ) -> PremiumSubscription:
         with self.session_factory() as db:
-            domain = self._require_owned_domain(db, user_id=user_id, monitored_domain_id=monitored_domain_id)
+            domain = self._require_owned_domain(
+                db, user_id=user_id, monitored_domain_id=monitored_domain_id
+            )
             subscription = self._get_subscription(db, monitored_domain_id=domain.id)
             current_time = self._utcnow()
             trial_end = current_time + timedelta(days=self.trial_days)
@@ -92,7 +98,9 @@ class BillingService:
         current_period_end: datetime | None = None,
     ) -> PremiumSubscription:
         with self.session_factory() as db:
-            domain = self._require_owned_domain(db, user_id=user_id, monitored_domain_id=monitored_domain_id)
+            domain = self._require_owned_domain(
+                db, user_id=user_id, monitored_domain_id=monitored_domain_id
+            )
             subscription = self._get_subscription(db, monitored_domain_id=domain.id)
             current_time = self._utcnow()
 
@@ -126,7 +134,9 @@ class BillingService:
         monitored_domain_id: int,
     ) -> PremiumSubscription:
         with self.session_factory() as db:
-            domain = self._require_owned_domain(db, user_id=user_id, monitored_domain_id=monitored_domain_id)
+            domain = self._require_owned_domain(
+                db, user_id=user_id, monitored_domain_id=monitored_domain_id
+            )
             subscription = self._get_subscription(db, monitored_domain_id=domain.id)
             if subscription is None:
                 raise InputValidationError("Nao existe assinatura para este dominio.")
@@ -157,11 +167,15 @@ class BillingService:
 
     def is_entitled(self, *, monitored_domain_id: int) -> bool:
         with self.session_factory() as db:
-            subscription = self._get_subscription(db, monitored_domain_id=monitored_domain_id)
+            subscription = self._get_subscription(
+                db, monitored_domain_id=monitored_domain_id
+            )
             return self.evaluate_entitlement(subscription)
 
     def is_entitled_in_session(self, db: Session, *, monitored_domain_id: int) -> bool:
-        subscription = self._get_subscription(db, monitored_domain_id=monitored_domain_id)
+        subscription = self._get_subscription(
+            db, monitored_domain_id=monitored_domain_id
+        )
         return self.evaluate_entitlement(subscription)
 
     def require_entitlement(self, *, monitored_domain_id: int) -> None:
@@ -183,8 +197,14 @@ class BillingService:
             return self._utcnow() <= self._ensure_aware(subscription.trial_ends_at)
         return False
 
-    def days_left_in_trial(self, subscription: PremiumSubscription | None) -> int | None:
-        if subscription is None or subscription.status != "trial" or subscription.trial_ends_at is None:
+    def days_left_in_trial(
+        self, subscription: PremiumSubscription | None
+    ) -> int | None:
+        if (
+            subscription is None
+            or subscription.status != "trial"
+            or subscription.trial_ends_at is None
+        ):
             return None
         delta = self._ensure_aware(subscription.trial_ends_at) - self._utcnow()
         days_left = delta.total_seconds() / 86400
@@ -195,7 +215,9 @@ class BillingService:
     # -- helpers ------------------------------------------------------
 
     @staticmethod
-    def _get_subscription(db: Session, *, monitored_domain_id: int) -> PremiumSubscription | None:
+    def _get_subscription(
+        db: Session, *, monitored_domain_id: int
+    ) -> PremiumSubscription | None:
         return db.scalar(
             select(PremiumSubscription).where(
                 PremiumSubscription.monitored_domain_id == monitored_domain_id
@@ -211,7 +233,9 @@ class BillingService:
     ) -> MonitoredDomain:
         domain = db.get(MonitoredDomain, monitored_domain_id)
         if domain is None or domain.user_id != user_id or domain.deleted_at is not None:
-            raise AuthorizationError("Dominio monitorado nao encontrado para este usuario.")
+            raise AuthorizationError(
+                "Dominio monitorado nao encontrado para este usuario."
+            )
         return domain
 
     @staticmethod

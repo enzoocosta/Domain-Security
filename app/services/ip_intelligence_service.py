@@ -7,7 +7,11 @@ from app.core.config import settings
 from app.core.exceptions import DNSLookupError
 from app.schemas.analysis import IPIntelligenceResult, ResolvedIPAddress
 from app.services.dns_service import DNSLookupService, IPAddressValue
-from app.services.providers.geoip_provider import DisabledGeoIPProvider, GeoIPLookupResult, GeoIPProvider
+from app.services.providers.geoip_provider import (
+    DisabledGeoIPProvider,
+    GeoIPLookupResult,
+    GeoIPProvider,
+)
 from app.services.providers.maxmind_geoip_provider import MaxMindGeoIPProvider
 
 
@@ -31,11 +35,16 @@ class IPIntelligenceService:
         except DNSLookupError as exc:
             return IPIntelligenceResult(
                 message="Nao foi possivel resolver enderecos IP do website por indisponibilidade temporaria de DNS.",
-                notes=[str(exc), "A analise principal seguiu sem o bloco de inteligencia de IP."],
+                notes=[
+                    str(exc),
+                    "A analise principal seguiu sem o bloco de inteligencia de IP.",
+                ],
                 source="DNS",
             )
 
-        reverse_dns_map = {item.address: self._safe_reverse_dns(item.address) for item in resolved}
+        reverse_dns_map = {
+            item.address: self._safe_reverse_dns(item.address) for item in resolved
+        }
         serialized = [
             self._serialize_record(item, reverse_dns=reverse_dns_map.get(item.address))
             for item in resolved
@@ -44,7 +53,9 @@ class IPIntelligenceService:
             return IPIntelligenceResult(
                 resolved_ips=[],
                 message="Nenhum registro A ou AAAA foi encontrado para o website analisado.",
-                notes=["Sem IP resolvido, nao foi possivel aplicar geolocalizacao ou contexto adicional de IP."],
+                notes=[
+                    "Sem IP resolvido, nao foi possivel aplicar geolocalizacao ou contexto adicional de IP."
+                ],
                 source="DNS",
             )
 
@@ -88,7 +99,9 @@ class IPIntelligenceService:
                 "ASN, organizacao e pais vieram do fallback ipwhois; cidade e ISP podem ficar indisponiveis sem MaxMind."
             )
         elif geo_result.source and geo_result.source.startswith("maxmind"):
-            notes.append("ASN, geolocalizacao e contexto de rede vieram do MaxMind configurado neste ambiente.")
+            notes.append(
+                "ASN, geolocalizacao e contexto de rede vieram do MaxMind configurado neste ambiente."
+            )
         notes.extend(geo_result.notes)
 
         if not public_records:
@@ -110,7 +123,9 @@ class IPIntelligenceService:
         reputation_summary = None
         if geo_result.anonymous_ip_flags:
             reputation_summary = (
-                "A base observada sinalizou: " + ", ".join(sorted(geo_result.anonymous_ip_flags)) + "."
+                "A base observada sinalizou: "
+                + ", ".join(sorted(geo_result.anonymous_ip_flags))
+                + "."
             )
 
         return IPIntelligenceResult(
@@ -136,13 +151,17 @@ class IPIntelligenceService:
             usage_type=usage_type,
             anonymous_ip_flags=geo_result.anonymous_ip_flags,
             is_proxy_or_hosting_guess=geo_result.is_proxy_or_hosting_guess,
-            reputation_source=geo_result.source if geo_result.anonymous_ip_flags else None,
+            reputation_source=geo_result.source
+            if geo_result.anonymous_ip_flags
+            else None,
             reputation_summary=reputation_summary,
             reputation_tags=list(geo_result.anonymous_ip_flags),
             source=geo_result.source or "DNS",
             confidence=self._confidence_for_source(geo_result),
             confidence_note=geo_result.confidence_note,
-            message=self._build_message(primary.address, len(public_records), geo_result),
+            message=self._build_message(
+                primary.address, len(public_records), geo_result
+            ),
             notes=self._dedupe_notes(notes),
         )
 
@@ -151,7 +170,9 @@ class IPIntelligenceService:
             return GeoIPLookupResult(
                 available=False,
                 source="DNS",
-                notes=["O IP principal resolvido nao e publico; o enriquecimento geografico foi omitido."],
+                notes=[
+                    "O IP principal resolvido nao e publico; o enriquecimento geografico foi omitido."
+                ],
                 confidence_note="Geolocalizacao de IP privado, local ou reservado nao foi tentada.",
             )
         return self.geoip_provider.lookup(ip_address)
@@ -178,7 +199,9 @@ class IPIntelligenceService:
             )
 
         network = payload.get("network") or {}
-        country_code = self._clean_text(network.get("country")) or self._clean_text(payload.get("asn_country_code"))
+        country_code = self._clean_text(network.get("country")) or self._clean_text(
+            payload.get("asn_country_code")
+        )
         country_name = self._country_name_from_code(country_code)
         asn_org = self._clean_text(payload.get("asn_description"))
         organization = self._clean_text(network.get("name")) or asn_org
@@ -202,7 +225,9 @@ class IPIntelligenceService:
             confidence_note=(
                 "O fallback ipwhois prioriza ASN, organizacao e pais e normalmente nao informa cidade ou ISP detalhados."
             ),
-            notes=["O fallback ipwhois foi usado para complementar ASN, organizacao e pais do IP observado."],
+            notes=[
+                "O fallback ipwhois foi usado para complementar ASN, organizacao e pais do IP observado."
+            ],
         )
 
     def _safe_reverse_dns(self, address: str) -> str | None:
@@ -212,7 +237,9 @@ class IPIntelligenceService:
             return None
 
     @staticmethod
-    def _serialize_record(record: IPAddressValue, *, reverse_dns: str | None) -> ResolvedIPAddress:
+    def _serialize_record(
+        record: IPAddressValue, *, reverse_dns: str | None
+    ) -> ResolvedIPAddress:
         return ResolvedIPAddress(
             ip=record.address,
             version=record.version,
@@ -222,7 +249,9 @@ class IPIntelligenceService:
         )
 
     @staticmethod
-    def _merge_lookup_results(primary_result: GeoIPLookupResult, fallback_result: GeoIPLookupResult) -> GeoIPLookupResult:
+    def _merge_lookup_results(
+        primary_result: GeoIPLookupResult, fallback_result: GeoIPLookupResult
+    ) -> GeoIPLookupResult:
         if not fallback_result.available:
             return GeoIPLookupResult(
                 available=primary_result.available,
@@ -240,8 +269,11 @@ class IPIntelligenceService:
                 usage_type=primary_result.usage_type,
                 anonymous_ip_flags=primary_result.anonymous_ip_flags,
                 is_proxy_or_hosting_guess=primary_result.is_proxy_or_hosting_guess,
-                confidence_note=primary_result.confidence_note or fallback_result.confidence_note,
-                notes=IPIntelligenceService._dedupe_notes(primary_result.notes + fallback_result.notes),
+                confidence_note=primary_result.confidence_note
+                or fallback_result.confidence_note,
+                notes=IPIntelligenceService._dedupe_notes(
+                    primary_result.notes + fallback_result.notes
+                ),
             )
 
         source = fallback_result.source
@@ -262,14 +294,18 @@ class IPIntelligenceService:
             isp=primary_result.isp or fallback_result.isp,
             organization=primary_result.organization or fallback_result.organization,
             usage_type=primary_result.usage_type or fallback_result.usage_type,
-            anonymous_ip_flags=primary_result.anonymous_ip_flags or fallback_result.anonymous_ip_flags,
+            anonymous_ip_flags=primary_result.anonymous_ip_flags
+            or fallback_result.anonymous_ip_flags,
             is_proxy_or_hosting_guess=(
                 primary_result.is_proxy_or_hosting_guess
                 if primary_result.is_proxy_or_hosting_guess is not None
                 else fallback_result.is_proxy_or_hosting_guess
             ),
-            confidence_note=primary_result.confidence_note or fallback_result.confidence_note,
-            notes=IPIntelligenceService._dedupe_notes(primary_result.notes + fallback_result.notes),
+            confidence_note=primary_result.confidence_note
+            or fallback_result.confidence_note,
+            notes=IPIntelligenceService._dedupe_notes(
+                primary_result.notes + fallback_result.notes
+            ),
         )
 
     @staticmethod
@@ -281,7 +317,9 @@ class IPIntelligenceService:
         return "baixa"
 
     @staticmethod
-    def _build_message(primary_ip: str, public_count: int, geo_result: GeoIPLookupResult) -> str:
+    def _build_message(
+        primary_ip: str, public_count: int, geo_result: GeoIPLookupResult
+    ) -> str:
         if geo_result.source and "ipwhois" in geo_result.source:
             suffix = " com ASN e pais obtidos via fallback ipwhois."
         elif geo_result.available:
@@ -290,7 +328,9 @@ class IPIntelligenceService:
             suffix = "."
         if public_count > 1:
             return f"Foram resolvidos {public_count} IPs publicos; o IP principal exibido e {primary_ip}{suffix}"
-        return f"O IP publico principal observado para o website foi {primary_ip}{suffix}"
+        return (
+            f"O IP publico principal observado para o website foi {primary_ip}{suffix}"
+        )
 
     @staticmethod
     def _guess_usage_type(
@@ -305,9 +345,22 @@ class IPIntelligenceService:
         combined = " ".join(part.lower() for part in (isp, organization) if part)
         if not combined:
             return None
-        if any(token in combined for token in ("cloud", "hosting", "cdn", "datacenter", "data center")):
+        if any(
+            token in combined
+            for token in ("cloud", "hosting", "cdn", "datacenter", "data center")
+        ):
             return "hosting"
-        if any(token in combined for token in ("residential", "broadband", "fiber", "cable", "wireless", "mobile")):
+        if any(
+            token in combined
+            for token in (
+                "residential",
+                "broadband",
+                "fiber",
+                "cable",
+                "wireless",
+                "mobile",
+            )
+        ):
             return "residential"
         if any(token in combined for token in ("business", "enterprise", "corporate")):
             return "business"

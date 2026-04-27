@@ -10,12 +10,26 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.auth_session import SESSION_COOKIE_NAME, decode_session_cookie, encode_session_cookie
+from app.core.auth_session import (
+    SESSION_COOKIE_NAME,
+    decode_session_cookie,
+    encode_session_cookie,
+)
 from app.core.config import settings
-from app.core.exceptions import AuthenticationError, AuthorizationError, InputValidationError, ResourceConflictError
+from app.core.exceptions import (
+    AuthenticationError,
+    AuthorizationError,
+    InputValidationError,
+    ResourceConflictError,
+)
 from app.db.models import NotificationPreference, User
 from app.db.session import SessionLocal
-from app.schemas.auth import UserLoginInput, UserRegistrationInput, UserRole, UserSession
+from app.schemas.auth import (
+    UserLoginInput,
+    UserRegistrationInput,
+    UserRole,
+    UserSession,
+)
 
 
 class AuthenticationService:
@@ -27,7 +41,9 @@ class AuthenticationService:
     def __init__(self, session_factory: Callable[[], Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
 
-    def register_user(self, email: str, password: str, role: UserRole = "client") -> UserSession:
+    def register_user(
+        self, email: str, password: str, role: UserRole = "client"
+    ) -> UserSession:
         try:
             payload = UserRegistrationInput(email=email, password=password)
         except ValidationError as exc:
@@ -36,7 +52,9 @@ class AuthenticationService:
         with self.session_factory() as db:
             existing = self._get_user_by_email(db, payload.email)
             if existing is not None:
-                raise ResourceConflictError("Ja existe um usuario cadastrado com este e-mail.")
+                raise ResourceConflictError(
+                    "Ja existe um usuario cadastrado com este e-mail."
+                )
 
             user = User(
                 email=payload.email,
@@ -60,7 +78,9 @@ class AuthenticationService:
             raise InputValidationError(str(exc.errors()[0]["msg"])) from exc
         with self.session_factory() as db:
             user = self._get_user_by_email(db, payload.email)
-            if user is None or not self._verify_password(payload.password, user.password_hash):
+            if user is None or not self._verify_password(
+                payload.password, user.password_hash
+            ):
                 raise AuthenticationError("Credenciais invalidas.")
             if not user.is_active:
                 raise AuthorizationError("A conta do usuario esta inativa.")
@@ -69,10 +89,13 @@ class AuthenticationService:
     def get_user_session(self, request: Request) -> UserSession | None:
         session_payload = getattr(request.state, "auth_session", None)
         if session_payload is None:
-            session_payload = decode_session_cookie(
-                request.cookies.get(SESSION_COOKIE_NAME, ""),
-                settings.session_secret,
-            ) or {}
+            session_payload = (
+                decode_session_cookie(
+                    request.cookies.get(SESSION_COOKIE_NAME, ""),
+                    settings.session_secret,
+                )
+                or {}
+            )
         user_id = session_payload.get("user_id")
         if not user_id:
             return None

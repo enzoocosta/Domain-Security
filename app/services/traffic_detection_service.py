@@ -88,7 +88,9 @@ class TrafficDetectionService:
         config: DetectionConfig | None = None,
     ) -> None:
         self.session_factory = session_factory or SessionLocal
-        self.billing_service = billing_service or BillingService(session_factory=self.session_factory)
+        self.billing_service = billing_service or BillingService(
+            session_factory=self.session_factory
+        )
         self.config = config or DetectionConfig.from_settings()
 
     def run_detection_cycle(self) -> list[TrafficIncident]:
@@ -102,7 +104,9 @@ class TrafficDetectionService:
         with self.session_factory() as db:
             entitled_ids = self._select_entitled_domain_ids(db)
             for monitored_domain_id in entitled_ids:
-                created.extend(self._detect_for_domain(db, monitored_domain_id=monitored_domain_id))
+                created.extend(
+                    self._detect_for_domain(db, monitored_domain_id=monitored_domain_id)
+                )
             db.commit()
         return created
 
@@ -112,7 +116,9 @@ class TrafficDetectionService:
                 db, monitored_domain_id=monitored_domain_id
             ):
                 return []
-            created = self._detect_for_domain(db, monitored_domain_id=monitored_domain_id)
+            created = self._detect_for_domain(
+                db, monitored_domain_id=monitored_domain_id
+            )
             db.commit()
             return created
 
@@ -121,7 +127,10 @@ class TrafficDetectionService:
     def _select_entitled_domain_ids(self, db: Session) -> list[int]:
         rows = db.execute(
             select(MonitoredDomain.id, PremiumSubscription)
-            .join(PremiumSubscription, PremiumSubscription.monitored_domain_id == MonitoredDomain.id)
+            .join(
+                PremiumSubscription,
+                PremiumSubscription.monitored_domain_id == MonitoredDomain.id,
+            )
             .where(MonitoredDomain.deleted_at.is_(None))
         ).all()
         entitled: list[int] = []
@@ -193,10 +202,14 @@ class TrafficDetectionService:
         now: datetime,
     ) -> list[_IncidentCandidate]:
         recent_window_start = now - timedelta(seconds=self.config.spike_window_seconds)
-        baseline_start = now - timedelta(seconds=self.config.spike_baseline_window_seconds)
+        baseline_start = now - timedelta(
+            seconds=self.config.spike_baseline_window_seconds
+        )
 
         recent_count = sum(
-            1 for event in events if self._aware(event.occurred_at) >= recent_window_start
+            1
+            for event in events
+            if self._aware(event.occurred_at) >= recent_window_start
         )
         if recent_count < self.config.spike_min_requests:
             return []
@@ -211,14 +224,18 @@ class TrafficDetectionService:
 
         baseline_seconds = max(
             1,
-            self.config.spike_baseline_window_seconds - self.config.spike_window_seconds,
+            self.config.spike_baseline_window_seconds
+            - self.config.spike_window_seconds,
         )
         baseline_rate_per_second = len(baseline_events) / baseline_seconds
         recent_rate_per_second = recent_count / max(1, self.config.spike_window_seconds)
 
         if baseline_rate_per_second <= 0:
             return []
-        if recent_rate_per_second < baseline_rate_per_second * self.config.spike_multiplier:
+        if (
+            recent_rate_per_second
+            < baseline_rate_per_second * self.config.spike_multiplier
+        ):
             return []
 
         return [
@@ -240,7 +257,9 @@ class TrafficDetectionService:
                     "recent_rate_per_second": round(recent_rate_per_second, 4),
                     "multiplier_threshold": self.config.spike_multiplier,
                 },
-                dedupe_key=self._dedupe_key("traffic_spike", now, self.config.spike_window_seconds),
+                dedupe_key=self._dedupe_key(
+                    "traffic_spike", now, self.config.spike_window_seconds
+                ),
             )
         ]
 
@@ -251,7 +270,9 @@ class TrafficDetectionService:
         now: datetime,
     ) -> list[_IncidentCandidate]:
         window_start = now - timedelta(seconds=self.config.scan_window_seconds)
-        windowed = [event for event in events if self._aware(event.occurred_at) >= window_start]
+        windowed = [
+            event for event in events if self._aware(event.occurred_at) >= window_start
+        ]
         if not windowed:
             return []
 
@@ -307,11 +328,15 @@ class TrafficDetectionService:
         now: datetime,
     ) -> list[_IncidentCandidate]:
         window_start = now - timedelta(seconds=self.config.error_window_seconds)
-        windowed = [event for event in events if self._aware(event.occurred_at) >= window_start]
+        windowed = [
+            event for event in events if self._aware(event.occurred_at) >= window_start
+        ]
         if len(windowed) < self.config.error_min_requests:
             return []
 
-        error_count = sum(1 for event in windowed if event.status_code and event.status_code >= 500)
+        error_count = sum(
+            1 for event in windowed if event.status_code and event.status_code >= 500
+        )
         rate = error_count / len(windowed)
         if rate < self.config.error_rate_threshold:
             return []
@@ -332,7 +357,9 @@ class TrafficDetectionService:
                     "error_rate": round(rate, 4),
                     "window_seconds": self.config.error_window_seconds,
                 },
-                dedupe_key=self._dedupe_key("error_spike", now, self.config.error_window_seconds),
+                dedupe_key=self._dedupe_key(
+                    "error_spike", now, self.config.error_window_seconds
+                ),
             )
         ]
 
@@ -395,8 +422,7 @@ class TrafficDetectionService:
         dedupe_window_start = now - timedelta(seconds=self.config.dedupe_window_seconds)
         existing_keys = set(
             db.scalars(
-                select(TrafficIncident.dedupe_key)
-                .where(
+                select(TrafficIncident.dedupe_key).where(
                     TrafficIncident.monitored_domain_id == monitored_domain_id,
                     TrafficIncident.detected_at >= dedupe_window_start,
                     TrafficIncident.dedupe_key.is_not(None),

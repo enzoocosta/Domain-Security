@@ -26,7 +26,13 @@ FindingSeverity = Literal["baixo", "medio", "alto", "critico"]
 RecommendationPriority = Literal["alta", "media", "baixa"]
 SPFPosture = Literal["restritivo", "permissivo", "neutro", "desconhecido"]
 DMARCStrength = Literal["fraco", "intermediario", "forte", "desconhecido"]
-DKIMStatus = Literal["confirmado_presente", "provavelmente_presente", "desconhecido", "provavelmente_ausente", "invalido"]
+DKIMStatus = Literal[
+    "confirmado_presente",
+    "provavelmente_presente",
+    "desconhecido",
+    "provavelmente_ausente",
+    "invalido",
+]
 SPFAllMechanism = Literal["+all", "-all", "~all", "?all"]
 TransportConfidence = Literal["baixa", "media", "alta"]
 ExpiryStatus = Literal["ok", "proximo_expiracao", "expirado", "desconhecido"]
@@ -86,9 +92,13 @@ class SPFCheckResult(BaseModel):
     posture: SPFPosture = "desconhecido"
     risks: list[str] = Field(default_factory=list)
     lookup_count: int | None = None
-    lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = "nao_implementado"
+    lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = (
+        "nao_implementado"
+    )
     void_lookup_count: int | None = None
-    void_lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = "nao_implementado"
+    void_lookup_count_status: Literal["nao_implementado", "estimado", "exato"] = (
+        "nao_implementado"
+    )
     lookup_limit_exceeded: bool = False
     lookup_candidates: list[str] = Field(default_factory=list)
     lookup_chain: list[str] = Field(default_factory=list)

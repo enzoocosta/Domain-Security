@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 import inspect
+import os
 
 from app.api.routes import analysis as analysis_route
 from app.api.routes import asset_discovery_web as asset_discovery_web_route
@@ -152,7 +153,9 @@ def _ip_intelligence_result() -> IPIntelligenceResult:
         usage_type="hosting",
         confidence="media",
         message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
-        notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
+        notes=[
+            "Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."
+        ],
         source="maxmind:city+asn+isp",
     )
 
@@ -171,10 +174,16 @@ def _install_stub_service(
     pdf_renderer = FakePDFRenderer(content=b"%PDF-fake-report")
     service = DomainAnalysisService(
         dns_service=dns_service,
-        website_tls_service=StubWebsiteTLSService(website_tls_result or _website_tls_result()),
+        website_tls_service=StubWebsiteTLSService(
+            website_tls_result or _website_tls_result()
+        ),
         email_tls_service=StubEmailTLSService(email_tls_result or _email_tls_result()),
-        domain_registration_service=StubDomainRegistrationService(registration_result or _registration_result()),
-        ip_intelligence_service=StubIPIntelligenceService(ip_intelligence_result or _ip_intelligence_result()),
+        domain_registration_service=StubDomainRegistrationService(
+            registration_result or _registration_result()
+        ),
+        ip_intelligence_service=StubIPIntelligenceService(
+            ip_intelligence_result or _ip_intelligence_result()
+        ),
         history_service=history_service,
     )
     monkeypatch.setattr(analysis_route, "service", service)
@@ -193,7 +202,10 @@ def _install_stub_service(
 
 
 def _install_stub_discovery_service(monkeypatch) -> StubAmassRunner:
-    from app.services.providers.amass_runner import AssetDiscoveryResult, DiscoveredAssetRecord
+    from app.services.providers.amass_runner import (
+        AssetDiscoveryResult,
+        DiscoveredAssetRecord,
+    )
 
     runner = StubAmassRunner(
         AssetDiscoveryResult(
@@ -231,7 +243,9 @@ def _wordpress_analysis_response() -> WordPressAnalysisResponse:
             wordpressVersion="6.4.2",
             versionHidden=False,
         ),
-        versionDetection=WordPressVersionDetection(version="6.4.2", source="meta_generator"),
+        versionDetection=WordPressVersionDetection(
+            version="6.4.2", source="meta_generator"
+        ),
         items=[
             WordPressItemAnalysis(
                 slug="wordpress-core",
@@ -256,12 +270,20 @@ def _wordpress_analysis_response() -> WordPressAnalysisResponse:
         summary=WordPressAnalysisSummary(
             totalItemsAnalisados=1,
             totalVulnerabilidades=1,
-            vulnerabilidadesPorSeveridade={"critical": 0, "high": 1, "medium": 0, "low": 0},
+            vulnerabilidadesPorSeveridade={
+                "critical": 0,
+                "high": 1,
+                "medium": 0,
+                "low": 0,
+            },
             scoreGeral=85,
             classificacao="seguro",
         ),
         warnings=[],
-        progressSteps=["Carregando pagina principal...", "Consultando vulnerabilidades do core..."],
+        progressSteps=[
+            "Carregando pagina principal...",
+            "Consultando vulnerabilidades do core...",
+        ],
     )
 
 
@@ -307,7 +329,9 @@ def test_home_page_nav_shows_developer_items_for_developer_role(client):
     from app.services.auth_service import AuthenticationService
 
     auth_service = AuthenticationService()
-    auth_service.register_user("developer-nav@example.com", "supersecret", role="developer")
+    auth_service.register_user(
+        "developer-nav@example.com", "supersecret", role="developer"
+    )
     client.post(
         "/auth/login",
         data={"email": "developer-nav@example.com", "password": "supersecret"},
@@ -345,8 +369,8 @@ def test_wordpress_page_renders_selector_with_technical_and_common_modes(client)
     assert 'id="bloco-comum"' in response.text
     assert 'id="bloco-tecnico"' in response.text
     assert 'id="wordpress-profile-panels"' in response.text
-    assert 'data-wp-tech-loader' in response.text
-    assert 'data-wp-tech-step-list' in response.text
+    assert "data-wp-tech-loader" in response.text
+    assert "data-wp-tech-step-list" in response.text
     assert "hidden" in response.text
 
 
@@ -354,7 +378,9 @@ def test_wordpress_technical_report_page_renders_empty_state_shell(client):
     response = client.get("/wordpress/relatorio-tecnico")
 
     assert response.status_code == 200
-    assert "Relatorio de Seguranca WordPress - Analise Tecnica Completa" in response.text
+    assert (
+        "Relatorio de Seguranca WordPress - Analise Tecnica Completa" in response.text
+    )
     assert "Nenhum relatorio tecnico disponivel" in response.text
     assert "Exportar PDF" in response.text
     assert "Voltar a analise" in response.text
@@ -368,7 +394,9 @@ def test_wordpress_analysis_endpoint_returns_backend_payload(client, monkeypatch
         def __init__(self) -> None:
             self.calls: list[tuple[str, WordPressAnalysisOptions]] = []
 
-        def analyze_site(self, url: str, options: WordPressAnalysisOptions | None = None) -> WordPressAnalysisResponse:
+        def analyze_site(
+            self, url: str, options: WordPressAnalysisOptions | None = None
+        ) -> WordPressAnalysisResponse:
             self.calls.append((url, options or WordPressAnalysisOptions()))
             return _wordpress_analysis_response()
 
@@ -399,14 +427,18 @@ def test_wordpress_analysis_endpoint_returns_backend_payload(client, monkeypatch
     assert service.calls[0][0] == "https://example.com"
 
 
-def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, monkeypatch):
+def test_analysis_endpoint_returns_payload_with_tls_and_registration(
+    client, monkeypatch
+):
     _install_stub_service(
         monkeypatch,
         StubDNSService(
             mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
             txt_records={
                 "example.com": ["v=spf1 include:_spf.example.net -all"],
-                "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:dmarc@example.com"],
+                "_dmarc.example.com": [
+                    "v=DMARC1; p=reject; rua=mailto:dmarc@example.com"
+                ],
                 "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIIB"],
             },
         ),
@@ -435,14 +467,21 @@ def test_analysis_endpoint_returns_payload_with_tls_and_registration(client, mon
     assert payload["performance"]["total_ms"] >= 0
     assert payload["score"] >= 80
     assert payload["severity"] in {"bom", "excelente"}
-    assert {item["category"] for item in payload["findings"]} == {"mx", "spf", "dkim", "dmarc"}
+    assert {item["category"] for item in payload["findings"]} == {
+        "mx",
+        "spf",
+        "dkim",
+        "dmarc",
+    }
 
 
 def test_analysis_endpoint_returns_404_for_nonexistent_domain(client, monkeypatch):
     _install_stub_service(
         monkeypatch,
         StubDNSService(
-            mx_exception=DNSDomainNotFoundError("O dominio 'inexistente.invalid' nao foi encontrado no DNS."),
+            mx_exception=DNSDomainNotFoundError(
+                "O dominio 'inexistente.invalid' nao foi encontrado no DNS."
+            ),
         ),
     )
 
@@ -503,7 +542,9 @@ def test_form_submission_renders_frozen_domain_banner(client, monkeypatch):
     assert "SUSPENSO" in response.text
 
 
-def test_form_submission_renders_monitoring_plus_offer_for_authenticated_user(client, monkeypatch):
+def test_form_submission_renders_monitoring_plus_offer_for_authenticated_user(
+    client, monkeypatch
+):
     _install_stub_service(
         monkeypatch,
         StubDNSService(
@@ -558,7 +599,10 @@ def test_form_submission_hides_empty_email_tls_details(client, monkeypatch):
     response = client.post("/analyze", data={"target": "example.com"})
 
     assert response.status_code == 200
-    assert "Nao foi possivel obter informacoes de TLS/SSL dos registros MX do dominio example.com." in response.text
+    assert (
+        "Nao foi possivel obter informacoes de TLS/SSL dos registros MX do dominio example.com."
+        in response.text
+    )
     assert "O certificado de e-mail pertence ao servidor MX" not in response.text
     assert "porta 25" not in response.text
     assert "Timeout ao testar STARTTLS" not in response.text
@@ -711,7 +755,9 @@ def test_report_pdf_export_returns_pdf(client, monkeypatch):
             mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
             txt_records={
                 "example.com": ["v=spf1 include:_spf.example.net -all"],
-                "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:dmarc@example.com"],
+                "_dmarc.example.com": [
+                    "v=DMARC1; p=reject; rua=mailto:dmarc@example.com"
+                ],
                 "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIIB"],
             },
         ),
@@ -754,7 +800,7 @@ def test_register_login_and_create_monitored_domain(client):
     assert dashboard_response.status_code == 200
     assert "example.com" in dashboard_response.text
     assert "Dominio principal" in dashboard_response.text
-    assert "daily" in dashboard_response.text
+    assert "24 horas" in dashboard_response.text
 
     logout_response = client.post("/auth/logout", follow_redirects=True)
     assert logout_response.status_code == 200
@@ -805,7 +851,41 @@ def test_external_monitoring_api_rejects_invalid_token(client):
     assert response.json()["detail"] == "Token invalido."
 
 
-def test_asset_discovery_web_and_api_routes_work_for_authenticated_user(client, monkeypatch):
+def test_internal_run_checks_endpoint_requires_valid_secret_token(client, monkeypatch):
+    previous_token = os.environ.get("DSC_INTERNAL_RUN_CHECKS_TOKEN")
+    os.environ["DSC_INTERNAL_RUN_CHECKS_TOKEN"] = "internal-secret"
+    from app.api.routes import internal_monitoring as internal_monitoring_route
+    from app.core.config import settings
+
+    settings.__dict__["internal_run_checks_token"] = "internal-secret"
+    monkeypatch.setattr(
+        internal_monitoring_route.monitoring_service,
+        "run_pending_checks",
+        lambda: type("Result", (), {"processed": 2, "succeeded": 1, "failed": 1})(),
+    )
+
+    unauthorized = client.post("/internal/run-checks")
+    authorized = client.post(
+        "/internal/run-checks",
+        headers={"X-Internal-Token": "internal-secret"},
+    )
+
+    if previous_token is None:
+        os.environ.pop("DSC_INTERNAL_RUN_CHECKS_TOKEN", None)
+        settings.__dict__["internal_run_checks_token"] = None
+    else:
+        os.environ["DSC_INTERNAL_RUN_CHECKS_TOKEN"] = previous_token
+        settings.__dict__["internal_run_checks_token"] = previous_token
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+    assert authorized.json()["processed"] == 2
+    assert authorized.json()["failed"] == 1
+
+
+def test_asset_discovery_web_and_api_routes_work_for_authenticated_user(
+    client, monkeypatch
+):
     runner = _install_stub_discovery_service(monkeypatch)
 
     client.post(

@@ -202,6 +202,12 @@ Rotas API autenticadas por sessao (visivel apenas para perfis `developer` e `adm
 - `POST /api/external/v1/monitoring/{id}/resume`
 - `DELETE /api/external/v1/monitoring/{id}`
 
+### Endpoint interno para scheduler externo
+
+- `POST /internal/run-checks`
+- Header obrigatorio: `X-Internal-Token: <DSC_INTERNAL_RUN_CHECKS_TOKEN>`
+- Uso previsto: cron do cPanel, GitHub Actions, jobs do servidor ou qualquer scheduler externo
+
 ---
 
 ## Variaveis de ambiente
@@ -219,7 +225,11 @@ Consulte `.env.example`. Os grupos principais sao:
 O monitoramento autenticado continua disponivel com:
 
 - estados `active`, `paused` e `deleted`
+- runner com `next_check_at`, `check_interval_minutes`, retry de 15 minutos em falha e historico em `MonitoringRun`
 - API externa autenticada por token somente para monitoramento
+- endpoint interno simples para disparar checks pendentes por scheduler externo
+- plano `standard` com intervalo minimo de 6 horas
+- plano `plus` com intervalo minimo de 1 hora, check manual sob demanda e multiplos contatos de alerta
 - exportacao PDF do snapshot mais recente
 
 ---

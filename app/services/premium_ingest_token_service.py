@@ -97,7 +97,9 @@ class PremiumIngestTokenService:
             tokens = db.scalars(
                 select(PremiumIngestToken)
                 .where(PremiumIngestToken.monitored_domain_id == monitored_domain_id)
-                .order_by(PremiumIngestToken.created_at.desc(), PremiumIngestToken.id.desc())
+                .order_by(
+                    PremiumIngestToken.created_at.desc(), PremiumIngestToken.id.desc()
+                )
             ).all()
             return [self._to_summary(item) for item in tokens]
 
@@ -110,7 +112,9 @@ class PremiumIngestTokenService:
         tokens = db.scalars(
             select(PremiumIngestToken)
             .where(PremiumIngestToken.monitored_domain_id == monitored_domain_id)
-            .order_by(PremiumIngestToken.created_at.desc(), PremiumIngestToken.id.desc())
+            .order_by(
+                PremiumIngestToken.created_at.desc(), PremiumIngestToken.id.desc()
+            )
         ).all()
         return [self._to_summary(item) for item in tokens]
 
@@ -160,7 +164,10 @@ class PremiumIngestTokenService:
         with self.session_factory() as db:
             token = db.scalar(
                 select(PremiumIngestToken)
-                .join(MonitoredDomain, PremiumIngestToken.monitored_domain_id == MonitoredDomain.id)
+                .join(
+                    MonitoredDomain,
+                    PremiumIngestToken.monitored_domain_id == MonitoredDomain.id,
+                )
                 .where(
                     PremiumIngestToken.token_identifier == identifier,
                     PremiumIngestToken.is_active.is_(True),
@@ -213,7 +220,9 @@ class PremiumIngestTokenService:
     ) -> MonitoredDomain:
         domain = db.get(MonitoredDomain, monitored_domain_id)
         if domain is None or domain.user_id != user_id or domain.deleted_at is not None:
-            raise AuthorizationError("Dominio monitorado nao encontrado para este usuario.")
+            raise AuthorizationError(
+                "Dominio monitorado nao encontrado para este usuario."
+            )
         return domain
 
     @staticmethod

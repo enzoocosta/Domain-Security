@@ -18,6 +18,13 @@ class AlertCandidate:
     description: str
 
 
+@dataclass(frozen=True)
+class AlertEvaluation:
+    candidates: list[AlertCandidate]
+    primary_reason: str | None
+    should_notify: bool
+
+
 class MonitoringAlertService:
     """Evaluates monitoring results and synchronizes alert state."""
 
@@ -36,7 +43,8 @@ class MonitoringAlertService:
         current_result: AnalysisResponse,
         *,
         previous_result: AnalysisResponse | None = None,
-    ) -> list[AlertCandidate]:
+        last_alert_reason: str | None = None,
+    ) -> AlertEvaluation:
         candidates: list[AlertCandidate] = []
 
         dmarc = current_result.checks.dmarc
@@ -90,18 +98,39 @@ class MonitoringAlertService:
                     description="A postura de DKIM sugere risco aumentado de spoofing ou configuracao inconsistente.",
                 )
             )
+        if website_tls.days_to_expire is not None and website_tls.days_to_expire < 7:
+            candidates.append(
+                AlertCandidate(
+                    alert_type="cert_expiring_critical",
+                    severity="alta",
+                    title="Certificado TLS expirando em menos de 7 dias",
+                    description="O certificado do website esta muito perto de expirar e exige renovacao imediata.",
+                )
+            )
+        elif website_tls.days_to_expire is not None and website_tls.days_to_expire < 30:
+            candidates.append(
+                AlertCandidate(
+                    alert_type="cert_expiring_warning",
+                    severity="media",
+                    title="Certificado TLS expirando em menos de 30 dias",
+                    description="O certificado do website esta proximo da expiracao e deve entrar na fila de renovacao.",
+                )
+            )
 
         if previous_result is not None:
-            if self._dmarc_weakened(previous_result, current_result):
+            if self._dmarc_regressed(previous_result, current_result):
                 candidates.append(
                     AlertCandidate(
-                        alert_type="dmarc_weakened",
+                        alert_type="dmarc_regressed",
                         severity="alta",
-                        title="DMARC enfraqueceu",
+                        title="DMARC regrediu",
                         description="A politica DMARC atual esta menos restritiva do que a execucao anterior, elevando o risco de spoofing.",
                     )
                 )
-            if previous_result.score - current_result.score >= settings.monitoring_score_drop_threshold:
+            if (
+                previous_result.score - current_result.score
+                >= settings.monitoring_score_drop_threshold
+            ):
                 candidates.append(
                     AlertCandidate(
                         alert_type="score_drop",
@@ -112,7 +141,9 @@ class MonitoringAlertService:
                         ),
                     )
                 )
-            if self._severity_worsened(previous_result.severity, current_result.severity):
+            if self._severity_worsened(
+                previous_result.severity, current_result.severity
+            ):
                 candidates.append(
                     AlertCandidate(
                         alert_type="severity_worsened",
@@ -123,7 +154,9 @@ class MonitoringAlertService:
                         ),
                     )
                 )
-            if self._has_new_critical_email_auth_finding(previous_result.findings, current_result.findings):
+            if self._has_new_critical_email_auth_finding(
+                previous_result.findings, current_result.findings
+            ):
                 candidates.append(
                     AlertCandidate(
                         alert_type="critical_email_auth_finding",
@@ -139,6 +172,15 @@ class MonitoringAlertService:
                         severity="media",
                         title="DKIM permanece inconclusivo",
                         description="O DKIM continua unknown em execucoes consecutivas, o que mantem a incerteza sobre o risco de spoofing.",
+                    )
+                )
+            if self._ip_changed(previous_result, current_result):
+                candidates.append(
+                    AlertCandidate(
+                        alert_type="ip_changed",
+                        severity="alta",
+                        title="IP principal do dominio mudou",
+                        description="O IP principal observado para o website mudou desde a ultima execucao e merece revisao operacional.",
                     )
                 )
             if self._mx_changed(previous_result, current_result):
@@ -160,7 +202,16 @@ class MonitoringAlertService:
                     )
                 )
 
-        return self._dedupe_candidates(candidates)
+        deduped = self._dedupe_candidates(candidates)
+        primary_reason = self._build_primary_reason(deduped)
+        should_notify = (
+            bool(primary_reason) and primary_reason != (last_alert_reason or "").strip()
+        )
+        return AlertEvaluation(
+            candidates=deduped,
+            primary_reason=primary_reason,
+            should_notify=should_notify,
+        )
 
     def synchronize_alerts(
         self,
@@ -170,8 +221,12 @@ class MonitoringAlertService:
         monitoring_run: MonitoringRun,
         candidates: Iterable[AlertCandidate],
     ) -> list[AlertEvent]:
-        active_candidates = {candidate.alert_type: candidate for candidate in candidates}
-        stmt = select(AlertEvent).where(AlertEvent.monitored_domain_id == monitored_domain.id)
+        active_candidates = {
+            candidate.alert_type: candidate for candidate in candidates
+        }
+        stmt = select(AlertEvent).where(
+            AlertEvent.monitored_domain_id == monitored_domain.id
+        )
         existing_events = db.scalars(stmt).all()
         current_time = self._utcnow()
         synced_events: list[AlertEvent] = []
@@ -218,20 +273,32 @@ class MonitoringAlertService:
         return synced_events
 
     @staticmethod
-    def _dmarc_weakened(previous_result: AnalysisResponse, current_result: AnalysisResponse) -> bool:
-        previous_policy = previous_result.checks.dmarc.policy
-        current_policy = current_result.checks.dmarc.policy
-        return previous_policy in {"reject", "quarantine"} and current_policy == "none"
+    def _dmarc_regressed(
+        previous_result: AnalysisResponse, current_result: AnalysisResponse
+    ) -> bool:
+        previous_policy = previous_result.checks.dmarc.policy or "none"
+        current_policy = current_result.checks.dmarc.policy or "none"
+        return MonitoringAlertService._dmarc_order(
+            current_policy
+        ) < MonitoringAlertService._dmarc_order(previous_policy)
+
+    @staticmethod
+    def _dmarc_order(policy: str) -> int:
+        return {"none": 0, "quarantine": 1, "reject": 2}.get(policy, 0)
 
     def _severity_worsened(self, previous: str, current: str) -> bool:
-        return self.SEVERITY_ORDER.get(current, 0) > self.SEVERITY_ORDER.get(previous, 0)
+        return self.SEVERITY_ORDER.get(current, 0) > self.SEVERITY_ORDER.get(
+            previous, 0
+        )
 
     def _has_new_critical_email_auth_finding(
         self,
         previous_findings: list[Finding],
         current_findings: list[Finding],
     ) -> bool:
-        previous_signatures = {self._finding_signature(item) for item in previous_findings}
+        previous_signatures = {
+            self._finding_signature(item) for item in previous_findings
+        }
         for finding in current_findings:
             if finding.severity != "critico":
                 continue
@@ -242,14 +309,26 @@ class MonitoringAlertService:
         return False
 
     @staticmethod
-    def _is_recurrent_dkim_unknown(previous_result: AnalysisResponse, current_result: AnalysisResponse) -> bool:
+    def _is_recurrent_dkim_unknown(
+        previous_result: AnalysisResponse, current_result: AnalysisResponse
+    ) -> bool:
         return (
             previous_result.checks.dkim.status == "desconhecido"
             and current_result.checks.dkim.status == "desconhecido"
         )
 
     @staticmethod
-    def _mx_changed(previous_result: AnalysisResponse, current_result: AnalysisResponse) -> bool:
+    def _ip_changed(
+        previous_result: AnalysisResponse, current_result: AnalysisResponse
+    ) -> bool:
+        previous_ip = previous_result.ip_intelligence.primary_ip
+        current_ip = current_result.ip_intelligence.primary_ip
+        return bool(previous_ip and current_ip and previous_ip != current_ip)
+
+    @staticmethod
+    def _mx_changed(
+        previous_result: AnalysisResponse, current_result: AnalysisResponse
+    ) -> bool:
         previous_records = {
             (record.preference, record.exchange)
             for record in previous_result.checks.mx.records
@@ -261,14 +340,22 @@ class MonitoringAlertService:
         return previous_records != current_records
 
     @staticmethod
-    def _website_tls_regressed(previous_result: AnalysisResponse, current_result: AnalysisResponse) -> bool:
+    def _website_tls_regressed(
+        previous_result: AnalysisResponse, current_result: AnalysisResponse
+    ) -> bool:
         previous_tls = previous_result.website_tls
         current_tls = current_result.website_tls
         if previous_tls.ssl_active and not current_tls.ssl_active:
             return True
-        if previous_tls.certificate_valid is True and current_tls.certificate_valid is False:
+        if (
+            previous_tls.certificate_valid is True
+            and current_tls.certificate_valid is False
+        ):
             return True
-        if previous_tls.expiry_status == "ok" and current_tls.expiry_status in {"proximo_expiracao", "expirado"}:
+        if previous_tls.expiry_status == "ok" and current_tls.expiry_status in {
+            "proximo_expiracao",
+            "expirado",
+        }:
             return True
         return False
 
@@ -282,6 +369,13 @@ class MonitoringAlertService:
         for candidate in candidates:
             deduped[candidate.alert_type] = candidate
         return list(deduped.values())
+
+    @staticmethod
+    def _build_primary_reason(candidates: list[AlertCandidate]) -> str | None:
+        if not candidates:
+            return None
+        signatures = sorted(candidate.alert_type for candidate in candidates)
+        return "|".join(signatures)
 
     @staticmethod
     def _utcnow() -> datetime:

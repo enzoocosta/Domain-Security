@@ -63,6 +63,7 @@ class Settings:
     monitoring_scheduler_enabled: bool
     monitoring_poll_seconds: int
     monitoring_score_drop_threshold: int
+    internal_run_checks_token: str | None
     geoip_enabled: bool
     geoip_provider: str
     geoip_city_db_path: str | None
@@ -129,7 +130,10 @@ settings = Settings(
     session_max_age_seconds=max(300, _env_int("DSC_SESSION_MAX_AGE_SECONDS", 604800)),
     monitoring_scheduler_enabled=_env_bool("DSC_MONITORING_SCHEDULER_ENABLED", True),
     monitoring_poll_seconds=max(15, _env_int("DSC_MONITORING_POLL_SECONDS", 60)),
-    monitoring_score_drop_threshold=max(1, _env_int("DSC_MONITORING_SCORE_DROP_THRESHOLD", 15)),
+    monitoring_score_drop_threshold=max(
+        1, _env_int("DSC_MONITORING_SCORE_DROP_THRESHOLD", 15)
+    ),
+    internal_run_checks_token=_env_text("DSC_INTERNAL_RUN_CHECKS_TOKEN"),
     geoip_enabled=_env_bool("DSC_GEOIP_ENABLED", True),
     geoip_provider=(_env_text("DSC_GEOIP_PROVIDER", "disabled") or "disabled").lower(),
     geoip_city_db_path=_env_text("DSC_GEOIP_CITY_DB_PATH"),
@@ -151,34 +155,58 @@ settings = Settings(
     smtp_from_email=_env_text("DSC_SMTP_FROM_EMAIL"),
     smtp_from_name=_env_text("DSC_SMTP_FROM_NAME", "Domain Security Checker"),
     asset_discovery_enabled=_env_bool("DSC_ASSET_DISCOVERY_ENABLED", False),
-    asset_discovery_provider=(_env_text("DSC_ASSET_DISCOVERY_PROVIDER", "disabled") or "disabled").lower(),
+    asset_discovery_provider=(
+        _env_text("DSC_ASSET_DISCOVERY_PROVIDER", "disabled") or "disabled"
+    ).lower(),
     amass_binary_path=_env_text("DSC_AMASS_BINARY_PATH", "amass"),
     amass_timeout_seconds=max(10, _env_int("DSC_AMASS_TIMEOUT_SECONDS", 300)),
     amass_passive_mode=_env_bool("DSC_AMASS_PASSIVE_MODE", True),
-    monitoring_plus_scheduler_enabled=_env_bool("DSC_MONITORING_PLUS_SCHEDULER_ENABLED", True),
-    monitoring_plus_detection_interval_seconds=max(15, _env_int("DSC_MONITORING_PLUS_DETECTION_INTERVAL_SECONDS", 60)),
-    monitoring_plus_alert_dispatch_interval_seconds=max(15, _env_int("DSC_MONITORING_PLUS_ALERT_DISPATCH_INTERVAL_SECONDS", 60)),
+    monitoring_plus_scheduler_enabled=_env_bool(
+        "DSC_MONITORING_PLUS_SCHEDULER_ENABLED", True
+    ),
+    monitoring_plus_detection_interval_seconds=max(
+        15, _env_int("DSC_MONITORING_PLUS_DETECTION_INTERVAL_SECONDS", 60)
+    ),
+    monitoring_plus_alert_dispatch_interval_seconds=max(
+        15, _env_int("DSC_MONITORING_PLUS_ALERT_DISPATCH_INTERVAL_SECONDS", 60)
+    ),
     monitoring_plus_trial_days=max(1, _env_int("DSC_MONITORING_PLUS_TRIAL_DAYS", 14)),
-    monitoring_plus_spike_window_seconds=max(30, _env_int("DSC_MONITORING_PLUS_SPIKE_WINDOW_SECONDS", 60)),
+    monitoring_plus_spike_window_seconds=max(
+        30, _env_int("DSC_MONITORING_PLUS_SPIKE_WINDOW_SECONDS", 60)
+    ),
     monitoring_plus_spike_baseline_window_seconds=max(
         300, _env_int("DSC_MONITORING_PLUS_SPIKE_BASELINE_WINDOW_SECONDS", 86400)
     ),
-    monitoring_plus_spike_multiplier=max(1.5, _env_float("DSC_MONITORING_PLUS_SPIKE_MULTIPLIER", 10.0)),
-    monitoring_plus_spike_min_requests=max(5, _env_int("DSC_MONITORING_PLUS_SPIKE_MIN_REQUESTS", 50)),
-    monitoring_plus_scan_window_seconds=max(60, _env_int("DSC_MONITORING_PLUS_SCAN_WINDOW_SECONDS", 300)),
+    monitoring_plus_spike_multiplier=max(
+        1.5, _env_float("DSC_MONITORING_PLUS_SPIKE_MULTIPLIER", 10.0)
+    ),
+    monitoring_plus_spike_min_requests=max(
+        5, _env_int("DSC_MONITORING_PLUS_SPIKE_MIN_REQUESTS", 50)
+    ),
+    monitoring_plus_scan_window_seconds=max(
+        60, _env_int("DSC_MONITORING_PLUS_SCAN_WINDOW_SECONDS", 300)
+    ),
     monitoring_plus_scan_unique_paths_threshold=max(
         5, _env_int("DSC_MONITORING_PLUS_SCAN_UNIQUE_PATHS_THRESHOLD", 20)
     ),
     monitoring_plus_scan_404_ratio_threshold=max(
         0.1, _env_float("DSC_MONITORING_PLUS_SCAN_404_RATIO_THRESHOLD", 0.5)
     ),
-    monitoring_plus_error_window_seconds=max(60, _env_int("DSC_MONITORING_PLUS_ERROR_WINDOW_SECONDS", 300)),
+    monitoring_plus_error_window_seconds=max(
+        60, _env_int("DSC_MONITORING_PLUS_ERROR_WINDOW_SECONDS", 300)
+    ),
     monitoring_plus_error_rate_threshold=max(
         0.05, _env_float("DSC_MONITORING_PLUS_ERROR_RATE_THRESHOLD", 0.3)
     ),
-    monitoring_plus_error_min_requests=max(10, _env_int("DSC_MONITORING_PLUS_ERROR_MIN_REQUESTS", 30)),
-    monitoring_plus_event_retention_hours=max(1, _env_int("DSC_MONITORING_PLUS_EVENT_RETENTION_HOURS", 168)),
-    monitoring_plus_ingest_max_batch=max(1, _env_int("DSC_MONITORING_PLUS_INGEST_MAX_BATCH", 500)),
+    monitoring_plus_error_min_requests=max(
+        10, _env_int("DSC_MONITORING_PLUS_ERROR_MIN_REQUESTS", 30)
+    ),
+    monitoring_plus_event_retention_hours=max(
+        1, _env_int("DSC_MONITORING_PLUS_EVENT_RETENTION_HOURS", 168)
+    ),
+    monitoring_plus_ingest_max_batch=max(
+        1, _env_int("DSC_MONITORING_PLUS_INGEST_MAX_BATCH", 500)
+    ),
     monitoring_plus_suspicious_user_agents=tuple(
         item.strip().lower()
         for item in (

@@ -17,8 +17,18 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AuthorizationError, InputValidationError, ResourceConflictError
-from app.db.models import MonitoredDomain, PremiumSubscription, TrafficEvent, TrafficIncident, User
+from app.core.exceptions import (
+    AuthorizationError,
+    InputValidationError,
+    ResourceConflictError,
+)
+from app.db.models import (
+    MonitoredDomain,
+    PremiumSubscription,
+    TrafficEvent,
+    TrafficIncident,
+    User,
+)
 from app.db.session import SessionLocal
 from app.schemas.monitoring_plus import (
     MonitoringPlusActivationInput,
@@ -26,7 +36,6 @@ from app.schemas.monitoring_plus import (
     MonitoringPlusDomainCard,
     MonitoringPlusDomainDetail,
     MonitoringPlusDomainStats,
-    PremiumIngestTokenSummary,
     PremiumSubscriptionSummary,
     TrafficIncidentSummary,
 )
@@ -55,7 +64,9 @@ class MonitoringPlusService:
         self.monitoring_service = monitoring_service or MonitoringService(
             session_factory=self.session_factory
         )
-        self.billing_service = billing_service or BillingService(session_factory=self.session_factory)
+        self.billing_service = billing_service or BillingService(
+            session_factory=self.session_factory
+        )
         self.ingest_token_service = ingest_token_service or PremiumIngestTokenService(
             session_factory=self.session_factory
         )
@@ -81,11 +92,16 @@ class MonitoringPlusService:
                     user_id=user_id,
                     domain=payload.domain,
                     monitoring_frequency=payload.monitoring_frequency,
+                    check_interval_minutes=payload.check_interval_minutes,
                     input_label=payload.input_label,
+                    plan="plus",
+                    alert_contacts=payload.alert_contacts,
                 )
             except ResourceConflictError:
                 # Race condition: another request just created it.
-                existing = self._find_monitored_domain(user_id=user_id, domain=payload.domain)
+                existing = self._find_monitored_domain(
+                    user_id=user_id, domain=payload.domain
+                )
                 if existing is None:
                     raise
                 monitored_domain_id = existing
@@ -94,6 +110,15 @@ class MonitoringPlusService:
         else:
             monitored_domain_id = existing
 
+        self.monitoring_service.update_monitored_domain_configuration(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            plan="plus",
+            monitoring_frequency=payload.monitoring_frequency,
+            check_interval_minutes=payload.check_interval_minutes,
+            input_label=payload.input_label,
+            alert_contacts=payload.alert_contacts,
+        )
         self.billing_service.start_trial(
             user_id=user_id,
             monitored_domain_id=monitored_domain_id,
@@ -130,13 +155,19 @@ class MonitoringPlusService:
             )
             return MonitoringPlusOfferState(
                 monitored_domain_id=int(monitored_domain_id),
-                subscription_status=subscription.status if subscription is not None else None,
+                subscription_status=subscription.status
+                if subscription is not None
+                else None,
                 is_entitled=self.billing_service.evaluate_entitlement(subscription),
             )
 
     # -- dashboard reads ---------------------------------------------
 
     def get_dashboard(self, *, user_id: int) -> MonitoringPlusDashboard:
+        monitoring_summaries = {
+            item.id: item
+            for item in self.monitoring_service.list_monitored_domains(user_id=user_id)
+        }
         with self.session_factory() as db:
             user = self._require_user(db, user_id)
             rows = db.scalars(
@@ -170,16 +201,37 @@ class MonitoringPlusService:
                         TrafficIncident.monitored_domain_id == domain.id
                     )
                 )
+                monitoring_summary = monitoring_summaries.get(domain.id)
                 cards.append(
                     MonitoringPlusDomainCard(
                         monitored_domain_id=domain.id,
                         normalized_domain=domain.normalized_domain,
                         input_label=domain.input_label,
+                        plan=monitoring_summary.plan
+                        if monitoring_summary is not None
+                        else domain.plan,
+                        check_interval_minutes=(
+                            monitoring_summary.check_interval_minutes
+                            if monitoring_summary is not None
+                            else domain.check_interval_minutes
+                        ),
                         subscription_status=subscription.status,
-                        is_entitled=self.billing_service.evaluate_entitlement(subscription),
-                        days_left_in_trial=self.billing_service.days_left_in_trial(subscription),
+                        is_entitled=self.billing_service.evaluate_entitlement(
+                            subscription
+                        ),
+                        days_left_in_trial=self.billing_service.days_left_in_trial(
+                            subscription
+                        ),
                         open_incidents=open_incidents,
                         last_incident_at=last_incident_at,
+                        latest_score=monitoring_summary.latest_score
+                        if monitoring_summary is not None
+                        else None,
+                        scheduler_warning=(
+                            monitoring_summary.scheduler_warning
+                            if monitoring_summary is not None
+                            else None
+                        ),
                     )
                 )
                 total_open += open_incidents
@@ -213,15 +265,25 @@ class MonitoringPlusService:
             tokens = self.ingest_token_service.list_tokens_in_session(
                 db, monitored_domain_id=domain.id
             )
+            monitoring_detail = self.monitoring_service.get_domain_detail(
+                user_id=user_id,
+                monitored_domain_id=domain.id,
+            )
 
             return MonitoringPlusDomainDetail(
                 monitored_domain_id=domain.id,
                 normalized_domain=domain.normalized_domain,
                 input_label=domain.input_label,
+                plan=domain.plan,
+                check_interval_minutes=domain.check_interval_minutes,
+                alert_contacts=list(domain.alert_contacts or []),
                 subscription=self._to_subscription_summary(subscription),
                 stats=stats,
-                recent_incidents=[self._to_incident_summary(item) for item in recent_incidents],
+                recent_incidents=[
+                    self._to_incident_summary(item) for item in recent_incidents
+                ],
                 ingest_tokens=tokens,
+                monitoring=monitoring_detail,
             )
 
     # -- mutations ----------------------------------------------------
@@ -230,10 +292,21 @@ class MonitoringPlusService:
         self.billing_service.cancel(
             user_id=user_id, monitored_domain_id=monitored_domain_id
         )
+        self.monitoring_service.update_monitored_domain_configuration(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            plan="standard",
+            alert_contacts=[],
+        )
 
     def restart_trial(self, *, user_id: int, monitored_domain_id: int) -> None:
         self.billing_service.start_trial(
             user_id=user_id, monitored_domain_id=monitored_domain_id
+        )
+        self.monitoring_service.update_monitored_domain_configuration(
+            user_id=user_id,
+            monitored_domain_id=monitored_domain_id,
+            plan="plus",
         )
 
     def resolve_incident(
@@ -368,5 +441,7 @@ class MonitoringPlusService:
     ) -> MonitoredDomain:
         domain = db.get(MonitoredDomain, monitored_domain_id)
         if domain is None or domain.user_id != user_id or domain.deleted_at is not None:
-            raise AuthorizationError("Dominio monitorado nao encontrado para este usuario.")
+            raise AuthorizationError(
+                "Dominio monitorado nao encontrado para este usuario."
+            )
         return domain

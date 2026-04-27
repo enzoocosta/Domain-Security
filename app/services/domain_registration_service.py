@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from concurrent.futures import Future, ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from concurrent.futures import (
+    Future,
+    ThreadPoolExecutor,
+    TimeoutError as FutureTimeoutError,
+)
 from datetime import UTC, datetime
 from importlib import import_module
 import json
@@ -53,7 +57,9 @@ class DomainRegistrationService:
                 fallback_result = self._build_rdap_result(payload)
                 if self._has_meaningful_registration_data(fallback_result):
                     return fallback_result
-                fallback_error = "O fallback de registro tambem nao retornou dados suficientes."
+                fallback_error = (
+                    "O fallback de registro tambem nao retornou dados suficientes."
+                )
             except TimeoutError as exc:
                 fallback_error = str(exc)
             except Exception as exc:
@@ -73,7 +79,9 @@ class DomainRegistrationService:
         try:
             whois_module = import_module("whois")
         except Exception as exc:  # pragma: no cover - optional dependency/runtime path
-            raise RuntimeError("Biblioteca python-whois indisponivel no ambiente.") from exc
+            raise RuntimeError(
+                "Biblioteca python-whois indisponivel no ambiente."
+            ) from exc
 
         try:
             return whois_module.whois(domain)
@@ -97,7 +105,9 @@ class DomainRegistrationService:
             raise RuntimeError(f"Consulta RDAP retornou HTTP {exc.code}.") from exc
 
     def _run_lookup(self, lookup_func, domain: str):
-        executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dsc-registration")
+        executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="dsc-registration"
+        )
         future: Future = executor.submit(lookup_func, domain)
         try:
             return future.result(timeout=self.timeout_seconds)
@@ -126,10 +136,12 @@ class DomainRegistrationService:
             prefer="max",
         )
         days_to_expire = self._calculate_days_to_expire(expires_at)
-        registrar = self._stringify(self._pick_first(
-            self._mapping_get(payload, "registrar"),
-            self._mapping_get(payload, "registrar_name"),
-        ))
+        registrar = self._stringify(
+            self._pick_first(
+                self._mapping_get(payload, "registrar"),
+                self._mapping_get(payload, "registrar_name"),
+            )
+        )
         status = self._normalize_list(self._mapping_get(payload, "status"))
         available = any([created_at, expires_at, registrar, status])
 
@@ -143,12 +155,16 @@ class DomainRegistrationService:
             expiry_status=domain_expiry_label(days_to_expire),
             registrar=registrar,
             status=status,
-            message=self._build_message(created_at, expires_at, registrar, available=available),
+            message=self._build_message(
+                created_at, expires_at, registrar, available=available
+            ),
             source="WHOIS",
         )
 
     def _build_rdap_result(self, payload: dict[str, Any]) -> DomainRegistrationResult:
-        created_at = self._extract_event_datetime(payload, ("registration", "registered", "creation"))
+        created_at = self._extract_event_datetime(
+            payload, ("registration", "registered", "creation")
+        )
         expires_at = self._extract_event_datetime(payload, ("expiration", "expiry"))
         days_to_expire = self._calculate_days_to_expire(expires_at)
         registrar = self._extract_registrar(payload)
@@ -165,7 +181,9 @@ class DomainRegistrationService:
             expiry_status=domain_expiry_label(days_to_expire),
             registrar=registrar,
             status=status,
-            message=self._build_message(created_at, expires_at, registrar, available=available),
+            message=self._build_message(
+                created_at, expires_at, registrar, available=available
+            ),
             source="RDAP fallback",
         )
 
@@ -196,11 +214,15 @@ class DomainRegistrationService:
         return [value]
 
     @staticmethod
-    def _extract_event_datetime(payload: dict[str, Any], keywords: tuple[str, ...]) -> datetime | None:
+    def _extract_event_datetime(
+        payload: dict[str, Any], keywords: tuple[str, ...]
+    ) -> datetime | None:
         for event in payload.get("events", []):
             action = str(event.get("eventAction", "")).lower()
             if any(keyword in action for keyword in keywords):
-                parsed = DomainRegistrationService._parse_datetime(event.get("eventDate"))
+                parsed = DomainRegistrationService._parse_datetime(
+                    event.get("eventDate")
+                )
                 if parsed is not None:
                     return parsed
         return None

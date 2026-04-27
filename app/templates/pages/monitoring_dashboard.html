@@ -9,9 +9,12 @@
       <span>Dominios monitorados: {{ dashboard.monitored_domains | length }}</span>
       <span>Alertas abertos: {{ dashboard.open_alerts | length }}</span>
     </div>
+    {% if dashboard.scheduler_warning %}
+      <div class="message message--warning top-spacing">{{ dashboard.scheduler_warning }}</div>
+    {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Adicionar dominio monitorado", "Cadastro", "Rotulo opcional e frequencia configuravel para o dominio acompanhado.") %}
+  {% call render_section_card("Adicionar dominio monitorado", "Cadastro", "Plano standard com checks recorrentes e intervalo minimo de 6 horas.") %}
     {% if error %}
       <div class="message message--error">{{ error }}</div>
     {% endif %}
@@ -21,11 +24,13 @@
       <input id="domain" name="domain" type="text" maxlength="320" placeholder="example.com" required />
       <label for="input_label">Rotulo opcional</label>
       <input id="input_label" name="input_label" type="text" maxlength="255" placeholder="Dominio principal" />
-      <label for="monitoring_frequency">Frequencia</label>
-      <select id="monitoring_frequency" name="monitoring_frequency">
-        <option value="daily">daily</option>
-        <option value="weekly">weekly</option>
-        <option value="monthly">monthly</option>
+      <label for="check_interval_minutes">Intervalo</label>
+      <select id="check_interval_minutes" name="check_interval_minutes">
+        <option value="360">6 horas</option>
+        <option value="720">12 horas</option>
+        <option value="1440" selected>24 horas</option>
+        <option value="10080">7 dias</option>
+        <option value="43200">30 dias</option>
       </select>
       <button type="submit" class="button button--primary">Salvar monitoramento</button>
     </form>
@@ -112,7 +117,7 @@
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Dominios monitorados", "Inventario", "Cada dominio lista score, severidade e proxima execucao para acompanhamento rapido.") %}
+  {% call render_section_card("Dominios monitorados", "Inventario", "Cada dominio lista plano, intervalo, score valido mais recente e a proxima checagem.") %}
     {% if dashboard.monitored_domains %}
       <div class="timeline-list">
         {% for item in dashboard.monitored_domains %}
@@ -126,12 +131,16 @@
               </div>
               <span class="badge badge--{{ item.monitoring_status }}">{{ item.monitoring_status | humanize_token }}</span>
             </div>
+            {% if item.scheduler_warning %}
+              <p class="detail-card__note">{{ item.scheduler_warning }}</p>
+            {% endif %}
             <div class="metrics-grid metrics-grid--compact">
-              {{ render_metric_card("Frequencia", item.monitoring_frequency, "neutral") }}
-              {{ render_metric_card("Ultima execucao", item.last_run_at | format_datetime if item.last_run_at else 'ainda nao executado', "neutral") }}
-              {{ render_metric_card("Proxima execucao", item.next_run_at | format_datetime, "info") }}
+              {{ render_metric_card("Plano", item.plan | humanize_token, "neutral") }}
+              {{ render_metric_card("Intervalo", item.check_interval_minutes | format_interval_minutes, "neutral") }}
+              {{ render_metric_card("Ultimo estado valido", item.last_run_at | format_datetime if item.last_run_at else 'ainda nao executado', "neutral") }}
+              {{ render_metric_card("Proxima checagem", item.next_check_at | format_datetime, "info") }}
               {{ render_metric_card("Status do monitoramento", item.monitoring_status | humanize_token, "neutral") }}
-              {{ render_metric_card("Status da ultima execucao", item.last_status or 'agendado', "neutral") }}
+              {{ render_metric_card("Status da ultima tentativa", item.latest_run_status or item.last_status or 'agendado', "neutral") }}
               {{ render_metric_card("Ultimo score", item.latest_score if item.latest_score is not none else '-', "info") }}
               {{ render_metric_card("Alertas abertos", item.open_alert_count, "warning") }}
             </div>

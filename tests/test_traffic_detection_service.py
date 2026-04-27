@@ -4,7 +4,10 @@ from sqlalchemy import select
 
 from app.db.models import TrafficEvent, TrafficIncident
 from app.services.billing_service import BillingService
-from app.services.traffic_detection_service import DetectionConfig, TrafficDetectionService
+from app.services.traffic_detection_service import (
+    DetectionConfig,
+    TrafficDetectionService,
+)
 from tests.premium_test_utils import (
     build_test_session_factory,
     create_monitored_domain,

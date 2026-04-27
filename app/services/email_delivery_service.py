@@ -126,7 +126,11 @@ class EmailDeliveryService:
 
     @staticmethod
     def _build_sender() -> BaseEmailSender:
-        if settings.email_delivery_enabled and settings.smtp_host and settings.smtp_from_email:
+        if (
+            settings.email_delivery_enabled
+            and settings.smtp_host
+            and settings.smtp_from_email
+        ):
             return SMTPEmailSender(
                 host=settings.smtp_host,
                 port=settings.smtp_port,

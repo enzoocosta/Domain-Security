@@ -11,8 +11,13 @@ from app.core.config import settings
 from app.core.exceptions import AuthorizationError, InputValidationError
 from app.db.models import DiscoveredSubdomain, DiscoveryRun, User
 from app.db.session import SessionLocal
-from app.schemas.discovery import DiscoveryRunCreateInput, DiscoveryRunDetail, DiscoveryRunSummary, DiscoveredSubdomainItem
-from app.services.providers.amass_runner import AmassRunner, AssetDiscoveryResult, DiscoveredAssetRecord
+from app.schemas.discovery import (
+    DiscoveryRunCreateInput,
+    DiscoveryRunDetail,
+    DiscoveryRunSummary,
+    DiscoveredSubdomainItem,
+)
+from app.services.providers.amass_runner import AmassRunner, DiscoveredAssetRecord
 from app.utils.input_parser import normalize_target
 
 
@@ -30,7 +35,8 @@ class AssetDiscoveryService:
             binary_path=settings.amass_binary_path or "amass",
             timeout_seconds=settings.amass_timeout_seconds,
             passive_mode=settings.amass_passive_mode,
-            enabled=settings.asset_discovery_enabled and settings.asset_discovery_provider == "amass",
+            enabled=settings.asset_discovery_enabled
+            and settings.asset_discovery_provider == "amass",
         )
 
     def create_run(self, *, user_id: int, domain: str) -> DiscoveryRunDetail:
@@ -74,7 +80,9 @@ class AssetDiscoveryService:
             db.refresh(run)
             return self._to_detail(db, run)
 
-    def list_runs(self, *, user_id: int, domain: str | None = None) -> list[DiscoveryRunSummary]:
+    def list_runs(
+        self, *, user_id: int, domain: str | None = None
+    ) -> list[DiscoveryRunSummary]:
         with self.session_factory() as db:
             self._require_user(db, user_id)
             stmt: Select[tuple[DiscoveryRun]] = (
@@ -83,7 +91,10 @@ class AssetDiscoveryService:
                 .order_by(DiscoveryRun.started_at.desc(), DiscoveryRun.id.desc())
             )
             if domain:
-                stmt = stmt.where(DiscoveryRun.normalized_domain == normalize_target(domain).analysis_domain)
+                stmt = stmt.where(
+                    DiscoveryRun.normalized_domain
+                    == normalize_target(domain).analysis_domain
+                )
             runs = db.scalars(stmt).all()
             return [self._to_summary(item) for item in runs]
 
@@ -106,7 +117,10 @@ class AssetDiscoveryService:
             fqdn = asset.fqdn.lower()
             seen_before = db.scalar(
                 select(DiscoveredSubdomain.id)
-                .join(DiscoveryRun, DiscoveredSubdomain.discovery_run_id == DiscoveryRun.id)
+                .join(
+                    DiscoveryRun,
+                    DiscoveredSubdomain.discovery_run_id == DiscoveryRun.id,
+                )
                 .where(
                     DiscoveryRun.user_id == user_id,
                     DiscoveryRun.normalized_domain == normalized_domain,
@@ -138,7 +152,9 @@ class AssetDiscoveryService:
     def _require_run_for_user(db: Session, user_id: int, run_id: int) -> DiscoveryRun:
         run = db.get(DiscoveryRun, run_id)
         if run is None or run.user_id != user_id:
-            raise AuthorizationError("Voce nao tem acesso a esta execucao de discovery.")
+            raise AuthorizationError(
+                "Voce nao tem acesso a esta execucao de discovery."
+            )
         return run
 
     def _to_detail(self, db: Session, run: DiscoveryRun) -> DiscoveryRunDetail:

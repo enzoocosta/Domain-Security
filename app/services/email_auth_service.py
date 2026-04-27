@@ -1,6 +1,7 @@
 import re
 from dataclasses import dataclass
 
+from app.core.exceptions import DNSLookupError
 from app.schemas.analysis import DMARCCheckResult, DKIMCheckResult, SPFCheckResult
 from app.services.dns_service import DNSLookupService
 
@@ -90,7 +91,9 @@ class EmailAuthenticationService:
             final_all=final_all,
             posture=posture,
             risks=risks,
-            lookup_count=lookup_analysis.lookup_count if lookup_analysis.status != "nao_implementado" else None,
+            lookup_count=lookup_analysis.lookup_count
+            if lookup_analysis.status != "nao_implementado"
+            else None,
             lookup_count_status=lookup_analysis.status,
             void_lookup_count=(
                 lookup_analysis.void_lookup_count
@@ -103,7 +106,9 @@ class EmailAuthenticationService:
             lookup_chain=lookup_analysis.lookup_chain,
         )
 
-    def analyze_dmarc(self, checked_name: str, txt_records: list[str]) -> DMARCCheckResult:
+    def analyze_dmarc(
+        self, checked_name: str, txt_records: list[str]
+    ) -> DMARCCheckResult:
         dmarc_records = self._filter_policy_records(txt_records, "v=dmarc1")
         if not dmarc_records:
             return DMARCCheckResult(
@@ -158,7 +163,9 @@ class EmailAuthenticationService:
             risks=risks,
         )
 
-    def analyze_dkim(self, domain: str, dns_service: DNSLookupService) -> DKIMCheckResult:
+    def analyze_dkim(
+        self, domain: str, dns_service: DNSLookupService
+    ) -> DKIMCheckResult:
         checked_names: list[str] = []
         selectors_with_records: list[str] = []
         valid_records: list[str] = []
@@ -226,7 +233,11 @@ class EmailAuthenticationService:
     @staticmethod
     def _filter_policy_records(records: list[str], prefix: str) -> list[str]:
         normalized_prefix = prefix.lower()
-        return [record.strip() for record in records if record.strip().lower().startswith(normalized_prefix)]
+        return [
+            record.strip()
+            for record in records
+            if record.strip().lower().startswith(normalized_prefix)
+        ]
 
     @staticmethod
     def _split_terms(record: str) -> list[str]:
@@ -263,7 +274,9 @@ class EmailAuthenticationService:
 
         if final_all is None:
             if all_terms:
-                risks.append("O mecanismo all existe, mas nao aparece na posicao final do SPF.")
+                risks.append(
+                    "O mecanismo all existe, mas nao aparece na posicao final do SPF."
+                )
             else:
                 risks.append("O registro SPF nao termina com um mecanismo all.")
 
@@ -297,17 +310,29 @@ class EmailAuthenticationService:
     ) -> str:
         lookup_suffix = ""
         if lookup_analysis.status != "nao_implementado":
-            lookup_suffix = f" Foram contadas {lookup_analysis.lookup_count} consulta(s) SPF."
+            lookup_suffix = (
+                f" Foram contadas {lookup_analysis.lookup_count} consulta(s) SPF."
+            )
             if lookup_analysis.void_lookup_count:
-                lookup_suffix += f" Void lookups observados: {lookup_analysis.void_lookup_count}."
+                lookup_suffix += (
+                    f" Void lookups observados: {lookup_analysis.void_lookup_count}."
+                )
             if lookup_analysis.limit_exceeded:
                 lookup_suffix += " O limite de 10 consultas DNS foi excedido."
             elif lookup_analysis.status == "estimado":
-                lookup_suffix += " A contagem ficou parcialmente estimada por macros ou ptr."
+                lookup_suffix += (
+                    " A contagem ficou parcialmente estimada por macros ou ptr."
+                )
         if final_all is None:
-            return "O dominio publica SPF, mas sem um mecanismo all terminal claramente definido." + lookup_suffix
+            return (
+                "O dominio publica SPF, mas sem um mecanismo all terminal claramente definido."
+                + lookup_suffix
+            )
         if posture in {"restritivo", "permissivo"}:
-            return f"O dominio publica SPF {final_all} com postura {posture}." + lookup_suffix
+            return (
+                f"O dominio publica SPF {final_all} com postura {posture}."
+                + lookup_suffix
+            )
         if risks:
             return risks[0] + lookup_suffix
         return "O dominio publica SPF." + lookup_suffix
@@ -330,7 +355,9 @@ class EmailAuthenticationService:
     @staticmethod
     def _validate_dmarc_policy(policy: str | None) -> str:
         if policy is None:
-            raise ValueError("O registro DMARC existe, mas nao define a politica obrigatoria p=.")
+            raise ValueError(
+                "O registro DMARC existe, mas nao define a politica obrigatoria p=."
+            )
         normalized_policy = policy.lower()
         if normalized_policy not in {"none", "quarantine", "reject"}:
             raise ValueError("O registro DMARC possui uma politica p= invalida.")
@@ -386,9 +413,13 @@ class EmailAuthenticationService:
     ) -> list[str]:
         risks: list[str] = []
         if policy == "none":
-            risks.append("A politica DMARC esta apenas em modo de monitoramento (p=none).")
+            risks.append(
+                "A politica DMARC esta apenas em modo de monitoramento (p=none)."
+            )
         if pct < 100:
-            risks.append("A politica DMARC se aplica apenas a parte das mensagens (pct<100).")
+            risks.append(
+                "A politica DMARC se aplica apenas a parte das mensagens (pct<100)."
+            )
         if not rua and not ruf:
             risks.append("O DMARC nao publica destinos de relatorio rua ou ruf.")
         if adkim == "r" and aspf == "r":
@@ -422,7 +453,9 @@ class EmailAuthenticationService:
             analysis.limit_exceeded = True
             analysis.risks.append("O SPF excede o limite de 10 consultas DNS.")
         if analysis.void_lookup_count > 2:
-            analysis.risks.append("O SPF gera mais de dois void lookups, o que aumenta risco de falha.")
+            analysis.risks.append(
+                "O SPF gera mais de dois void lookups, o que aumenta risco de falha."
+            )
         return analysis
 
     def _walk_spf_record(
@@ -436,7 +469,9 @@ class EmailAuthenticationService:
     ) -> None:
         normalized_domain = domain.lower()
         if normalized_domain in visited_domains:
-            analysis.risks.append(f"O SPF referencia novamente {domain}, sugerindo loop de avaliacao.")
+            analysis.risks.append(
+                f"O SPF referencia novamente {domain}, sugerindo loop de avaliacao."
+            )
             analysis.status = "estimado"
             return
         visited_domains.add(normalized_domain)
@@ -452,10 +487,14 @@ class EmailAuthenticationService:
                 if self._has_macro(include_domain):
                     analysis.status = "estimado"
                     continue
-                included_record = self._get_single_spf_record(include_domain, dns_service)
+                included_record = self._get_single_spf_record(
+                    include_domain, dns_service
+                )
                 if included_record is None:
                     analysis.void_lookup_count += 1
-                    analysis.risks.append(f"O include {include_domain} nao retornou um SPF utilizavel.")
+                    analysis.risks.append(
+                        f"O include {include_domain} nao retornou um SPF utilizavel."
+                    )
                     continue
                 self._walk_spf_record(
                     include_domain,
@@ -473,10 +512,14 @@ class EmailAuthenticationService:
                 if self._has_macro(redirect_domain):
                     analysis.status = "estimado"
                     continue
-                redirected_record = self._get_single_spf_record(redirect_domain, dns_service)
+                redirected_record = self._get_single_spf_record(
+                    redirect_domain, dns_service
+                )
                 if redirected_record is None:
                     analysis.void_lookup_count += 1
-                    analysis.risks.append(f"O redirect {redirect_domain} nao retornou um SPF utilizavel.")
+                    analysis.risks.append(
+                        f"O redirect {redirect_domain} nao retornou um SPF utilizavel."
+                    )
                     continue
                 self._walk_spf_record(
                     redirect_domain,
@@ -499,15 +542,23 @@ class EmailAuthenticationService:
                 continue
 
             if lowered == "a" or lowered.startswith("a:") or lowered.startswith("a/"):
-                target_domain = self._extract_mechanism_domain(mechanism, fallback_domain=domain, prefix="a")
+                target_domain = self._extract_mechanism_domain(
+                    mechanism, fallback_domain=domain, prefix="a"
+                )
                 analysis.lookup_count += 1
                 analysis.lookup_chain.append(f"a:{target_domain}")
                 if not self._has_ip_records(target_domain, dns_service):
                     analysis.void_lookup_count += 1
                 continue
 
-            if lowered == "mx" or lowered.startswith("mx:") or lowered.startswith("mx/"):
-                target_domain = self._extract_mechanism_domain(mechanism, fallback_domain=domain, prefix="mx")
+            if (
+                lowered == "mx"
+                or lowered.startswith("mx:")
+                or lowered.startswith("mx/")
+            ):
+                target_domain = self._extract_mechanism_domain(
+                    mechanism, fallback_domain=domain, prefix="mx"
+                )
                 analysis.lookup_count += 1
                 analysis.lookup_chain.append(f"mx:{target_domain}")
                 if not self._has_mx_records(target_domain, dns_service):
@@ -519,7 +570,9 @@ class EmailAuthenticationService:
                 analysis.lookup_chain.append(mechanism)
                 analysis.status = "estimado"
 
-    def _get_single_spf_record(self, domain: str, dns_service: DNSLookupService) -> str | None:
+    def _get_single_spf_record(
+        self, domain: str, dns_service: DNSLookupService
+    ) -> str | None:
         try:
             records = dns_service.get_txt_records(domain, missing_on_nxdomain=True)
         except DNSLookupError:
@@ -544,7 +597,9 @@ class EmailAuthenticationService:
             return False
 
     @staticmethod
-    def _extract_mechanism_domain(term: str, *, fallback_domain: str, prefix: str) -> str:
+    def _extract_mechanism_domain(
+        term: str, *, fallback_domain: str, prefix: str
+    ) -> str:
         if ":" not in term:
             return fallback_domain
         remainder = term.split(":", 1)[1]

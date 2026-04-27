@@ -23,7 +23,9 @@ class MonitoringSchedulerService:
             if self._thread is not None and self._thread.is_alive():
                 return
             self._stop_event.clear()
-            self._thread = Thread(target=self._run_loop, name="dsc-monitoring-scheduler", daemon=True)
+            self._thread = Thread(
+                target=self._run_loop, name="dsc-monitoring-scheduler", daemon=True
+            )
             self._thread.start()
 
     def stop(self) -> None:
@@ -36,7 +38,7 @@ class MonitoringSchedulerService:
     def _run_loop(self) -> None:
         while not self._stop_event.is_set():
             try:
-                self.monitoring_service.run_due_monitors()
+                self.monitoring_service.run_pending_checks()
             except Exception:
                 pass
             self._stop_event.wait(self.poll_seconds)

@@ -6,7 +6,6 @@ from app.presenters.ui_formatters import (
     check_status_badge,
     compact_fields,
     compact_list_blocks,
-    confidence_label,
     dkim_status_badge,
     dmarc_strength_label,
     expiry_status_badge,
@@ -21,7 +20,12 @@ from app.presenters.ui_formatters import (
     spf_posture_label,
     yes_no,
 )
-from app.schemas.analysis import AnalysisResponse, EmailTLSMXResult, Finding, Recommendation
+from app.schemas.analysis import (
+    AnalysisResponse,
+    EmailTLSMXResult,
+    Finding,
+    Recommendation,
+)
 
 _FINDING_ORDER = {
     "critico": 0,
@@ -36,7 +40,14 @@ _RECOMMENDATION_ORDER = {
     "baixa": 2,
 }
 
-_FROZEN_DOMAIN_STATUS_MARKERS = ("hold", "suspended", "frozen", "inactive", "serverhold", "clienthold")
+_FROZEN_DOMAIN_STATUS_MARKERS = (
+    "hold",
+    "suspended",
+    "frozen",
+    "inactive",
+    "serverhold",
+    "clienthold",
+)
 _SUSPENDED_DOMAIN_STATUS_MARKERS = ("hold", "suspended", "serverhold", "clienthold")
 _MONTH_ABBR = {
     1: "jan",
@@ -65,7 +76,11 @@ class ReportPresenter:
         analysis_timestamp = analyzed_at or datetime.now(tz=UTC)
         return {
             "alert_banner": self._build_domain_status_banner(result),
-            "executive": self._build_executive(result, submitted_target=submitted_target, analyzed_at=analysis_timestamp),
+            "executive": self._build_executive(
+                result,
+                submitted_target=submitted_target,
+                analyzed_at=analysis_timestamp,
+            ),
             "score_breakdown": self._build_score_breakdown(result),
             "changes": self._build_changes(result),
             "findings": self._build_findings(result.findings),
@@ -91,7 +106,9 @@ class ReportPresenter:
         return {
             "domain": result.normalized.analysis_domain,
             "input": result.normalized.original or submitted_target,
-            "target_type": "Endereco de e-mail" if result.normalized.target_type == "email" else "Dominio",
+            "target_type": "Endereco de e-mail"
+            if result.normalized.target_type == "email"
+            else "Dominio",
             "summary": result.summary,
             "score": result.score,
             "score_caption": self._score_caption(result.score),
@@ -124,13 +141,20 @@ class ReportPresenter:
         return {
             "title": "WHOIS / Registro",
             "icon": "registration",
-            "badge": status_alert["badge"] if status_alert else self._registration_badge(
+            "badge": status_alert["badge"]
+            if status_alert
+            else self._registration_badge(
                 self._registration_available(registration),
                 registration.expiry_status,
             ),
             "fields": compact_fields(
                 [
-                    make_field("Registrar", registration.registrar, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "Registrar",
+                        registration.registrar,
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
                     make_field(
                         "Criado em",
                         self._format_date_long(registration.created_at),
@@ -141,7 +165,9 @@ class ReportPresenter:
                         "Expira em",
                         self._format_date_long(registration.expires_at),
                         tone=self._expiry_tone(registration.expiry_status),
-                        badge=self._expiry_inline_badge(registration.days_to_expire, threshold=60),
+                        badge=self._expiry_inline_badge(
+                            registration.days_to_expire, threshold=60
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
@@ -167,16 +193,29 @@ class ReportPresenter:
             "badge": self._ip_badge(ip_info.has_public_ip),
             "fields": compact_fields(
                 [
-                    make_field("IP principal", ip_info.primary_ip, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "IP principal",
+                        ip_info.primary_ip,
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
                     make_field(
                         "ASN",
-                        self._join_non_empty(ip_info.asn, ip_info.asn_name or ip_info.asn_org, separator=" · "),
+                        self._join_non_empty(
+                            ip_info.asn,
+                            ip_info.asn_name or ip_info.asn_org,
+                            separator=" · ",
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
                     make_field(
                         "Pais",
-                        self._country_display(ip_info.country_name, ip_info.country_code, fallback=ip_info.country),
+                        self._country_display(
+                            ip_info.country_name,
+                            ip_info.country_code,
+                            fallback=ip_info.country,
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
@@ -190,21 +229,37 @@ class ReportPresenter:
         return {
             "title": "SSL do website",
             "icon": "tls",
-            "badge": self._tls_badge(tls.ssl_active, tls.certificate_valid, tls.expiry_status),
+            "badge": self._tls_badge(
+                tls.ssl_active, tls.certificate_valid, tls.expiry_status
+            ),
             "fields": compact_fields(
                 [
-                    make_field("SSL ativo", yes_no(tls.ssl_active), skip_if_empty=False, empty="Indisponivel"),
-                    make_field("Emissor", tls.issuer, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "SSL ativo",
+                        yes_no(tls.ssl_active),
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
+                    make_field(
+                        "Emissor", tls.issuer, skip_if_empty=False, empty="Indisponivel"
+                    ),
                     make_field(
                         "Expira em",
                         self._format_date_long(tls.not_after),
                         tone=self._expiry_tone(tls.expiry_status),
                         detail=self._days_remaining_label(tls.days_to_expire),
-                        badge=self._expiry_inline_badge(tls.days_to_expire, threshold=30),
+                        badge=self._expiry_inline_badge(
+                            tls.days_to_expire, threshold=30
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
-                    make_field("Versao TLS", tls.tls_version, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "Versao TLS",
+                        tls.tls_version,
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
                 ]
             ),
             "note": None,
@@ -235,9 +290,21 @@ class ReportPresenter:
         if changes.has_previous_snapshot:
             metrics = compact_fields(
                 [
-                    make_field("Score anterior", changes.previous_score, skip_if_empty=False),
-                    make_field("Score atual", changes.current_score, tone=self._score_tone(changes.current_score), skip_if_empty=False),
-                    make_field("Variacao", self._score_delta_label(changes.score_delta), tone=self._delta_tone(changes.score_delta), skip_if_empty=False),
+                    make_field(
+                        "Score anterior", changes.previous_score, skip_if_empty=False
+                    ),
+                    make_field(
+                        "Score atual",
+                        changes.current_score,
+                        tone=self._score_tone(changes.current_score),
+                        skip_if_empty=False,
+                    ),
+                    make_field(
+                        "Variacao",
+                        self._score_delta_label(changes.score_delta),
+                        tone=self._delta_tone(changes.score_delta),
+                        skip_if_empty=False,
+                    ),
                     make_field("Severity anterior", changes.previous_severity),
                     make_field("Severity atual", changes.current_severity),
                     make_field("Ultimo snapshot", changes.previous_snapshot_created_at),
@@ -262,7 +329,10 @@ class ReportPresenter:
     def _build_findings(self, findings: list[Finding]) -> list[dict]:
         ordered = sorted(
             findings,
-            key=lambda item: (_FINDING_ORDER.get(item.severity, 99), item.title.lower()),
+            key=lambda item: (
+                _FINDING_ORDER.get(item.severity, 99),
+                item.title.lower(),
+            ),
         )
         return [
             {
@@ -274,10 +344,15 @@ class ReportPresenter:
             for item in ordered
         ]
 
-    def _build_recommendations(self, recommendations: list[Recommendation]) -> list[dict]:
+    def _build_recommendations(
+        self, recommendations: list[Recommendation]
+    ) -> list[dict]:
         ordered = sorted(
             recommendations,
-            key=lambda item: (_RECOMMENDATION_ORDER.get(item.priority, 99), item.title.lower()),
+            key=lambda item: (
+                _RECOMMENDATION_ORDER.get(item.priority, 99),
+                item.title.lower(),
+            ),
         )
         return [
             {
@@ -297,18 +372,32 @@ class ReportPresenter:
             "badge": check_status_badge(result.checks.spf.status),
             "fields": compact_fields(
                 [
-                    make_field("Mecanismo final", result.checks.spf.final_all or "Nao identificado"),
+                    make_field(
+                        "Mecanismo final",
+                        result.checks.spf.final_all or "Nao identificado",
+                    ),
                     make_field("Postura", spf_posture_label(result.checks.spf.posture)),
-                    make_field("Consultas SPF", self._lookup_status_label(result.checks.spf.lookup_count_status)),
+                    make_field(
+                        "Consultas SPF",
+                        self._lookup_status_label(
+                            result.checks.spf.lookup_count_status
+                        ),
+                    ),
                     make_field("Total de lookups", result.checks.spf.lookup_count),
                     make_field("Void lookups", result.checks.spf.void_lookup_count),
-                    make_field("Limite excedido", yes_no(result.checks.spf.lookup_limit_exceeded), skip_if_empty=not result.checks.spf.lookup_limit_exceeded),
+                    make_field(
+                        "Limite excedido",
+                        yes_no(result.checks.spf.lookup_limit_exceeded),
+                        skip_if_empty=not result.checks.spf.lookup_limit_exceeded,
+                    ),
                 ]
             ),
             "lists": compact_list_blocks(
                 [
                     make_list_block("Registros SPF", result.checks.spf.records),
-                    make_list_block("Cadeia de lookups", result.checks.spf.lookup_chain),
+                    make_list_block(
+                        "Cadeia de lookups", result.checks.spf.lookup_chain
+                    ),
                     make_list_block("Riscos observados", result.checks.spf.risks),
                 ]
             ),
@@ -317,23 +406,34 @@ class ReportPresenter:
 
         dkim_note = result.checks.dkim.confidence_note.strip()
         if "headers reais" not in dkim_note.lower():
-            dkim_note = (
-                f"{dkim_note} A validacao confiavel pode depender de headers reais de e-mail."
-            )
+            dkim_note = f"{dkim_note} A validacao confiavel pode depender de headers reais de e-mail."
         dkim_card = {
             "title": "DKIM",
             "summary": result.checks.dkim.message,
             "badge": dkim_status_badge(result.checks.dkim.status),
             "fields": compact_fields(
                 [
-                    make_field("Seletores com registro", len(result.checks.dkim.selectors_with_records), skip_if_empty=False),
-                    make_field("Seletores verificados", len(result.checks.dkim.checked_selectors), skip_if_empty=False),
+                    make_field(
+                        "Seletores com registro",
+                        len(result.checks.dkim.selectors_with_records),
+                        skip_if_empty=False,
+                    ),
+                    make_field(
+                        "Seletores verificados",
+                        len(result.checks.dkim.checked_selectors),
+                        skip_if_empty=False,
+                    ),
                 ]
             ),
             "lists": compact_list_blocks(
                 [
-                    make_list_block("Seletores com registros", result.checks.dkim.selectors_with_records),
-                    make_list_block("Seletores verificados", result.checks.dkim.checked_selectors),
+                    make_list_block(
+                        "Seletores com registros",
+                        result.checks.dkim.selectors_with_records,
+                    ),
+                    make_list_block(
+                        "Seletores verificados", result.checks.dkim.checked_selectors
+                    ),
                 ]
             ),
             "note": dkim_note,
@@ -349,7 +449,10 @@ class ReportPresenter:
             "fields": compact_fields(
                 [
                     make_field("Politica", result.checks.dmarc.policy or "Ausente"),
-                    make_field("Forca", dmarc_strength_label(result.checks.dmarc.policy_strength)),
+                    make_field(
+                        "Forca",
+                        dmarc_strength_label(result.checks.dmarc.policy_strength),
+                    ),
                     make_field("pct", result.checks.dmarc.pct),
                     make_field("adkim", alignment_label(result.checks.dmarc.adkim)),
                     make_field("aspf", alignment_label(result.checks.dmarc.aspf)),
@@ -376,13 +479,34 @@ class ReportPresenter:
     def _build_dns_mx_section(self, result: AnalysisResponse) -> dict:
         mx_fields = compact_fields(
             [
-                make_field("DNS score", f"{result.score_breakdown.dns_score}/100", tone=self._score_tone(result.score_breakdown.dns_score), skip_if_empty=False),
-                make_field("MX score", f"{result.score_breakdown.mx_score}/100", tone=self._score_tone(result.score_breakdown.mx_score), skip_if_empty=False),
-                make_field("Aceita e-mail", yes_no(result.checks.mx.accepts_mail), skip_if_empty=result.checks.mx.accepts_mail is None),
-                make_field("Null MX", yes_no(result.checks.mx.is_null_mx), skip_if_empty=not result.checks.mx.is_null_mx),
+                make_field(
+                    "DNS score",
+                    f"{result.score_breakdown.dns_score}/100",
+                    tone=self._score_tone(result.score_breakdown.dns_score),
+                    skip_if_empty=False,
+                ),
+                make_field(
+                    "MX score",
+                    f"{result.score_breakdown.mx_score}/100",
+                    tone=self._score_tone(result.score_breakdown.mx_score),
+                    skip_if_empty=False,
+                ),
+                make_field(
+                    "Aceita e-mail",
+                    yes_no(result.checks.mx.accepts_mail),
+                    skip_if_empty=result.checks.mx.accepts_mail is None,
+                ),
+                make_field(
+                    "Null MX",
+                    yes_no(result.checks.mx.is_null_mx),
+                    skip_if_empty=not result.checks.mx.is_null_mx,
+                ),
             ]
         )
-        mx_records = [f"{record.preference} {record.exchange}" for record in result.checks.mx.records]
+        mx_records = [
+            f"{record.preference} {record.exchange}"
+            for record in result.checks.mx.records
+        ]
         return {
             "id": "dns-mx",
             "title": "DNS & MX",
@@ -393,7 +517,9 @@ class ReportPresenter:
                     "summary": result.checks.mx.message,
                     "badge": check_status_badge(result.checks.mx.status),
                     "fields": mx_fields,
-                    "lists": compact_list_blocks([make_list_block("Registros MX", mx_records)]),
+                    "lists": compact_list_blocks(
+                        [make_list_block("Registros MX", mx_records)]
+                    ),
                     "note": result.checks.mx.lookup_error,
                 }
             ],
@@ -471,9 +597,15 @@ class ReportPresenter:
                 {
                     "title": "DNSSEC",
                     "summary": dnssec.message,
-                    "badge": {"value": dnssec.status, "label": humanize_token(dnssec.status), "tone": "neutral"},
+                    "badge": {
+                        "value": dnssec.status,
+                        "label": humanize_token(dnssec.status),
+                        "tone": "neutral",
+                    },
                     "fields": [],
-                    "lists": compact_list_blocks([make_list_block("Notas", dnssec.notes)]),
+                    "lists": compact_list_blocks(
+                        [make_list_block("Notas", dnssec.notes)]
+                    ),
                     "note": None,
                 },
             ],
@@ -481,7 +613,9 @@ class ReportPresenter:
         }
 
     def _build_website_tls_section(self, result: AnalysisResponse) -> dict:
-        status_badge = self._tls_certificate_status_badge(result.website_tls.expiry_status, result.website_tls.ssl_active)
+        status_badge = self._tls_certificate_status_badge(
+            result.website_tls.expiry_status, result.website_tls.ssl_active
+        )
         return {
             "id": "website-tls",
             "title": "Website TLS/SSL",
@@ -493,11 +627,36 @@ class ReportPresenter:
                     "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("TLS ativo", yes_no(result.website_tls.ssl_active), skip_if_empty=False, empty="—"),
-                            make_field("Versao TLS", result.website_tls.tls_version, skip_if_empty=False, empty="—"),
-                            make_field("Emissor", result.website_tls.issuer, skip_if_empty=False, empty="—"),
-                            make_field("Validade", self._format_date_long(result.website_tls.not_after), skip_if_empty=False, empty="—"),
-                            make_field("Dias restantes", result.website_tls.days_to_expire, skip_if_empty=False, empty="—"),
+                            make_field(
+                                "TLS ativo",
+                                yes_no(result.website_tls.ssl_active),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Versao TLS",
+                                result.website_tls.tls_version,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Emissor",
+                                result.website_tls.issuer,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Validade",
+                                self._format_date_long(result.website_tls.not_after),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Dias restantes",
+                                result.website_tls.days_to_expire,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
                             make_field(
                                 "Status",
                                 status_badge["label"],
@@ -518,7 +677,9 @@ class ReportPresenter:
     def _build_ip_intelligence_section(self, result: AnalysisResponse) -> dict:
         resolved_labels = []
         for item in result.ip_intelligence.resolved_ips:
-            label = f"{item.ip} · {item.source_record_type} · PTR {item.reverse_dns or '—'}"
+            label = (
+                f"{item.ip} · {item.source_record_type} · PTR {item.reverse_dns or '—'}"
+            )
             resolved_labels.append(label)
         return {
             "id": "ip-intelligence",
@@ -531,11 +692,37 @@ class ReportPresenter:
                     "badge": self._ip_badge(result.ip_intelligence.has_public_ip),
                     "fields": compact_fields(
                         [
-                            make_field("IP principal", result.ip_intelligence.primary_ip, skip_if_empty=False, empty="—"),
-                            make_field("Versao", result.ip_intelligence.ip_version, skip_if_empty=False, empty="—"),
-                            make_field("ASN", result.ip_intelligence.asn, skip_if_empty=False, empty="—"),
-                            make_field("Nome do AS", result.ip_intelligence.asn_name or result.ip_intelligence.asn_org, skip_if_empty=False, empty="—"),
-                            make_field("Organizacao", result.ip_intelligence.organization, skip_if_empty=False, empty="—"),
+                            make_field(
+                                "IP principal",
+                                result.ip_intelligence.primary_ip,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Versao",
+                                result.ip_intelligence.ip_version,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "ASN",
+                                result.ip_intelligence.asn,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Nome do AS",
+                                result.ip_intelligence.asn_name
+                                or result.ip_intelligence.asn_org,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Organizacao",
+                                result.ip_intelligence.organization,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
                             make_field(
                                 "Pais",
                                 self._country_display(
@@ -546,10 +733,30 @@ class ReportPresenter:
                                 skip_if_empty=False,
                                 empty="—",
                             ),
-                            make_field("Cidade", result.ip_intelligence.city, skip_if_empty=False, empty="—"),
-                            make_field("ISP", result.ip_intelligence.isp, skip_if_empty=False, empty="—"),
-                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns, skip_if_empty=False, empty="—"),
-                            make_field("Tipo de uso", result.ip_intelligence.usage_type, skip_if_empty=False, empty="—"),
+                            make_field(
+                                "Cidade",
+                                result.ip_intelligence.city,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "ISP",
+                                result.ip_intelligence.isp,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Reverse DNS",
+                                result.ip_intelligence.reverse_dns,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Tipo de uso",
+                                result.ip_intelligence.usage_type,
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
                         ]
                     ),
                     "lists": compact_list_blocks(
@@ -576,7 +783,11 @@ class ReportPresenter:
                 ),
             }
 
-        cards = [self._build_mail_transport_card(mx_result) for mx_result in result.email_tls.mx_results if mx_result.has_tls_data]
+        cards = [
+            self._build_mail_transport_card(mx_result)
+            for mx_result in result.email_tls.mx_results
+            if mx_result.has_tls_data
+        ]
         return {
             "id": "mail-transport",
             "title": "Mail Transport Security",
@@ -592,7 +803,9 @@ class ReportPresenter:
         note_parts = []
         if mx_result.error:
             note_parts.append(f"Erro tecnico: {mx_result.error}")
-        badge = self._mail_tls_badge(mx_result.starttls_supported, mx_result.certificate_valid)
+        badge = self._mail_tls_badge(
+            mx_result.starttls_supported, mx_result.certificate_valid
+        )
         return {
             "title": mx_result.host,
             "summary": f"Seguranca de transporte de e-mail observada na porta {mx_result.port}.",
@@ -604,7 +817,10 @@ class ReportPresenter:
                     make_field("Certificado valido", mx_result.certificate_valid),
                     make_field("Hostname confere", mx_result.hostname_match),
                     make_field("Versao TLS", mx_result.tls_version),
-                    make_field("Status do certificado", expiry_status_badge(mx_result.expiry_status)["label"]),
+                    make_field(
+                        "Status do certificado",
+                        expiry_status_badge(mx_result.expiry_status)["label"],
+                    ),
                     make_field("Dias para expirar", mx_result.days_to_expire),
                     make_field("Issuer", mx_result.issuer),
                     make_field("Subject", mx_result.subject),
@@ -626,7 +842,9 @@ class ReportPresenter:
                 "empty_text": "Dados de registro indisponiveis para este dominio.",
             }
 
-        status_badge = self._registration_expiry_badge(result.domain_registration.expiry_status)
+        status_badge = self._registration_expiry_badge(
+            result.domain_registration.expiry_status
+        )
         return {
             "id": "domain-registration",
             "title": "Domain Registration",
@@ -638,16 +856,37 @@ class ReportPresenter:
                     "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("Registrar", result.domain_registration.registrar, skip_if_empty=False, empty="—"),
-                            make_field("Criado em", self._format_date_long(result.domain_registration.created_at), skip_if_empty=False, empty="—"),
                             make_field(
-                                "Expira em",
-                                self._format_date_long(result.domain_registration.expires_at),
-                                tone=self._expiry_tone(result.domain_registration.expiry_status),
+                                "Registrar",
+                                result.domain_registration.registrar,
                                 skip_if_empty=False,
                                 empty="—",
                             ),
-                            make_field("Status de expiracao", expiry_status_badge(result.domain_registration.expiry_status)["label"]),
+                            make_field(
+                                "Criado em",
+                                self._format_date_long(
+                                    result.domain_registration.created_at
+                                ),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Expira em",
+                                self._format_date_long(
+                                    result.domain_registration.expires_at
+                                ),
+                                tone=self._expiry_tone(
+                                    result.domain_registration.expiry_status
+                                ),
+                                skip_if_empty=False,
+                                empty="—",
+                            ),
+                            make_field(
+                                "Status de expiracao",
+                                expiry_status_badge(
+                                    result.domain_registration.expiry_status
+                                )["label"],
+                            ),
                             make_field(
                                 "Status de expiracao",
                                 status_badge["label"],
@@ -677,7 +916,9 @@ class ReportPresenter:
                     "summary": "Limites tecnicos e observacoes relevantes para interpretar o resultado sem falsa certeza.",
                     "badge": None,
                     "fields": [],
-                    "lists": compact_list_blocks([make_list_block("Technical Notes", notes)]),
+                    "lists": compact_list_blocks(
+                        [make_list_block("Technical Notes", notes)]
+                    ),
                     "note": None,
                 }
             )
@@ -689,16 +930,54 @@ class ReportPresenter:
                 "badge": None,
                 "fields": compact_fields(
                     [
-                        make_field("Tempo total", f"{result.performance.total_ms} ms", skip_if_empty=False),
-                        make_field("DNS", f"{result.performance.mx_ms} ms", skip_if_empty=False),
-                        make_field("SPF", f"{result.performance.spf_ms} ms", skip_if_empty=False),
-                        make_field("DKIM", f"{result.performance.dkim_ms} ms", skip_if_empty=False),
-                        make_field("DMARC", f"{result.performance.dmarc_ms} ms", skip_if_empty=False),
-                        make_field("TLS do website", f"{result.performance.website_tls_ms} ms", skip_if_empty=False),
-                        make_field("TLS de e-mail", f"{result.performance.email_tls_ms} ms", skip_if_empty=False),
-                        make_field("Registro do dominio", f"{result.performance.domain_registration_ms or result.performance.rdap_ms} ms", skip_if_empty=False),
-                        make_field("IP intelligence", f"{result.performance.ip_intelligence_ms} ms", skip_if_empty=False),
-                        make_field("Cache hit", result.performance.cache_hit, skip_if_empty=False),
+                        make_field(
+                            "Tempo total",
+                            f"{result.performance.total_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "DNS", f"{result.performance.mx_ms} ms", skip_if_empty=False
+                        ),
+                        make_field(
+                            "SPF",
+                            f"{result.performance.spf_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "DKIM",
+                            f"{result.performance.dkim_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "DMARC",
+                            f"{result.performance.dmarc_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "TLS do website",
+                            f"{result.performance.website_tls_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "TLS de e-mail",
+                            f"{result.performance.email_tls_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "Registro do dominio",
+                            f"{result.performance.domain_registration_ms or result.performance.rdap_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "IP intelligence",
+                            f"{result.performance.ip_intelligence_ms} ms",
+                            skip_if_empty=False,
+                        ),
+                        make_field(
+                            "Cache hit",
+                            result.performance.cache_hit,
+                            skip_if_empty=False,
+                        ),
                     ]
                 ),
                 "lists": [],
@@ -721,16 +1000,29 @@ class ReportPresenter:
             "badge": self._ip_badge(ip_info.has_public_ip),
             "fields": compact_fields(
                 [
-                    make_field("IP principal", ip_info.primary_ip, skip_if_empty=False, empty="Indisponivel"),
+                    make_field(
+                        "IP principal",
+                        ip_info.primary_ip,
+                        skip_if_empty=False,
+                        empty="Indisponivel",
+                    ),
                     make_field(
                         "ASN",
-                        self._join_non_empty(ip_info.asn, ip_info.asn_name or ip_info.asn_org, separator=" / "),
+                        self._join_non_empty(
+                            ip_info.asn,
+                            ip_info.asn_name or ip_info.asn_org,
+                            separator=" / ",
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
                     make_field(
                         "Pais",
-                        self._country_display(ip_info.country_name, ip_info.country_code, fallback=ip_info.country),
+                        self._country_display(
+                            ip_info.country_name,
+                            ip_info.country_code,
+                            fallback=ip_info.country,
+                        ),
                         skip_if_empty=False,
                         empty="Indisponivel",
                     ),
@@ -740,7 +1032,9 @@ class ReportPresenter:
         }
 
     def _build_website_tls_section(self, result: AnalysisResponse) -> dict:
-        status_badge = self._tls_certificate_status_badge(result.website_tls.expiry_status, result.website_tls.ssl_active)
+        status_badge = self._tls_certificate_status_badge(
+            result.website_tls.expiry_status, result.website_tls.ssl_active
+        )
         return {
             "id": "website-tls",
             "title": "Website TLS/SSL",
@@ -752,11 +1046,36 @@ class ReportPresenter:
                     "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("TLS ativo", yes_no(result.website_tls.ssl_active), skip_if_empty=False, empty="-"),
-                            make_field("Versao TLS", result.website_tls.tls_version, skip_if_empty=False, empty="-"),
-                            make_field("Emissor", result.website_tls.issuer, skip_if_empty=False, empty="-"),
-                            make_field("Validade", self._format_date_long(result.website_tls.not_after), skip_if_empty=False, empty="-"),
-                            make_field("Dias restantes", result.website_tls.days_to_expire, skip_if_empty=False, empty="-"),
+                            make_field(
+                                "TLS ativo",
+                                yes_no(result.website_tls.ssl_active),
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Versao TLS",
+                                result.website_tls.tls_version,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Emissor",
+                                result.website_tls.issuer,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Validade",
+                                self._format_date_long(result.website_tls.not_after),
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Dias restantes",
+                                result.website_tls.days_to_expire,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
                             make_field(
                                 "Status",
                                 status_badge["label"],
@@ -790,11 +1109,37 @@ class ReportPresenter:
                     "badge": self._ip_badge(result.ip_intelligence.has_public_ip),
                     "fields": compact_fields(
                         [
-                            make_field("IP principal", result.ip_intelligence.primary_ip, skip_if_empty=False, empty="-"),
-                            make_field("Versao", result.ip_intelligence.ip_version, skip_if_empty=False, empty="-"),
-                            make_field("ASN", result.ip_intelligence.asn, skip_if_empty=False, empty="-"),
-                            make_field("Nome do AS", result.ip_intelligence.asn_name or result.ip_intelligence.asn_org, skip_if_empty=False, empty="-"),
-                            make_field("Organizacao", result.ip_intelligence.organization, skip_if_empty=False, empty="-"),
+                            make_field(
+                                "IP principal",
+                                result.ip_intelligence.primary_ip,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Versao",
+                                result.ip_intelligence.ip_version,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "ASN",
+                                result.ip_intelligence.asn,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Nome do AS",
+                                result.ip_intelligence.asn_name
+                                or result.ip_intelligence.asn_org,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Organizacao",
+                                result.ip_intelligence.organization,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
                             make_field(
                                 "Pais",
                                 self._country_display(
@@ -805,13 +1150,35 @@ class ReportPresenter:
                                 skip_if_empty=False,
                                 empty="-",
                             ),
-                            make_field("Cidade", result.ip_intelligence.city, skip_if_empty=False, empty="-"),
-                            make_field("ISP", result.ip_intelligence.isp, skip_if_empty=False, empty="-"),
-                            make_field("Reverse DNS", result.ip_intelligence.reverse_dns, skip_if_empty=False, empty="-"),
-                            make_field("Tipo de uso", result.ip_intelligence.usage_type, skip_if_empty=False, empty="-"),
+                            make_field(
+                                "Cidade",
+                                result.ip_intelligence.city,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "ISP",
+                                result.ip_intelligence.isp,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Reverse DNS",
+                                result.ip_intelligence.reverse_dns,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Tipo de uso",
+                                result.ip_intelligence.usage_type,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
                         ]
                     ),
-                    "lists": compact_list_blocks([make_list_block("IPs resolvidos", resolved_labels)]),
+                    "lists": compact_list_blocks(
+                        [make_list_block("IPs resolvidos", resolved_labels)]
+                    ),
                     "note": self._ip_source_note(result.ip_intelligence),
                 }
             ],
@@ -828,7 +1195,9 @@ class ReportPresenter:
                 "empty_text": "Dados de registro indisponiveis para este dominio.",
             }
 
-        status_badge = self._registration_expiry_badge(result.domain_registration.expiry_status)
+        status_badge = self._registration_expiry_badge(
+            result.domain_registration.expiry_status
+        )
         return {
             "id": "domain-registration",
             "title": "Domain Registration",
@@ -840,12 +1209,28 @@ class ReportPresenter:
                     "badge": status_badge,
                     "fields": compact_fields(
                         [
-                            make_field("Registrar", result.domain_registration.registrar, skip_if_empty=False, empty="-"),
-                            make_field("Criado em", self._format_date_long(result.domain_registration.created_at), skip_if_empty=False, empty="-"),
+                            make_field(
+                                "Registrar",
+                                result.domain_registration.registrar,
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
+                            make_field(
+                                "Criado em",
+                                self._format_date_long(
+                                    result.domain_registration.created_at
+                                ),
+                                skip_if_empty=False,
+                                empty="-",
+                            ),
                             make_field(
                                 "Expira em",
-                                self._format_date_long(result.domain_registration.expires_at),
-                                tone=self._expiry_tone(result.domain_registration.expiry_status),
+                                self._format_date_long(
+                                    result.domain_registration.expires_at
+                                ),
+                                tone=self._expiry_tone(
+                                    result.domain_registration.expiry_status
+                                ),
                                 skip_if_empty=False,
                                 empty="-",
                             ),
@@ -906,10 +1291,16 @@ class ReportPresenter:
 
     @staticmethod
     def _registration_available(registration) -> bool:
-        return bool(registration.available or registration.whois_available or registration.rdap_available)
+        return bool(
+            registration.available
+            or registration.whois_available
+            or registration.rdap_available
+        )
 
     def _build_domain_status_banner(self, result: AnalysisResponse) -> dict | None:
-        status_alert = self._registration_status_alert(result.domain_registration.status)
+        status_alert = self._registration_status_alert(
+            result.domain_registration.status
+        )
         if not status_alert:
             return None
         return {
@@ -924,9 +1315,17 @@ class ReportPresenter:
     def _registration_status_alert(statuses: list[str]) -> dict[str, object] | None:
         for status in statuses:
             normalized = status.lower()
-            if not any(marker in normalized for marker in _FROZEN_DOMAIN_STATUS_MARKERS):
+            if not any(
+                marker in normalized for marker in _FROZEN_DOMAIN_STATUS_MARKERS
+            ):
                 continue
-            label = "SUSPENSO" if any(marker in normalized for marker in _SUSPENDED_DOMAIN_STATUS_MARKERS) else "CONGELADO"
+            label = (
+                "SUSPENSO"
+                if any(
+                    marker in normalized for marker in _SUSPENDED_DOMAIN_STATUS_MARKERS
+                )
+                else "CONGELADO"
+            )
             return {
                 "matched_status": status,
                 "badge": {"value": label.lower(), "label": label, "tone": "danger"},
@@ -940,7 +1339,9 @@ class ReportPresenter:
         return ", ".join(statuses)
 
     @staticmethod
-    def _expiry_inline_badge(days_to_expire: int | None, *, threshold: int) -> dict[str, str] | None:
+    def _expiry_inline_badge(
+        days_to_expire: int | None, *, threshold: int
+    ) -> dict[str, str] | None:
         if days_to_expire is None:
             return None
         if days_to_expire < 0:
@@ -957,16 +1358,31 @@ class ReportPresenter:
         parts = []
         if registration.source:
             parts.append(f"Fonte: {registration.source}.")
-        if registration.expiry_status == "expirado" and registration.days_to_expire is not None:
-            parts.append(f"Alerta: o dominio expirou ha {abs(registration.days_to_expire)} dia(s).")
-        elif registration.expiry_status == "proximo_expiracao" and registration.days_to_expire is not None:
-            parts.append(f"Alerta: o dominio expira em {registration.days_to_expire} dia(s).")
+        if (
+            registration.expiry_status == "expirado"
+            and registration.days_to_expire is not None
+        ):
+            parts.append(
+                f"Alerta: o dominio expirou ha {abs(registration.days_to_expire)} dia(s)."
+            )
+        elif (
+            registration.expiry_status == "proximo_expiracao"
+            and registration.days_to_expire is not None
+        ):
+            parts.append(
+                f"Alerta: o dominio expira em {registration.days_to_expire} dia(s)."
+            )
         elif not self._registration_available(registration):
             parts.append("Os dados de registro ficaram indisponiveis neste snapshot.")
         return " ".join(parts).strip() or None
 
     @staticmethod
-    def _country_display(country_name: str | None, country_code: str | None, *, fallback: str | None = None) -> str | None:
+    def _country_display(
+        country_name: str | None,
+        country_code: str | None,
+        *,
+        fallback: str | None = None,
+    ) -> str | None:
         if country_name and country_code:
             return f"{country_name} - {country_code}"
         if country_name:
@@ -1070,29 +1486,49 @@ class ReportPresenter:
         if expiry_status == "expirado":
             return {"value": "expirado", "label": "SSL expirado", "tone": "danger"}
         if certificate_valid is False:
-            return {"value": "invalido", "label": "Certificado invalido", "tone": "warning"}
+            return {
+                "value": "invalido",
+                "label": "Certificado invalido",
+                "tone": "warning",
+            }
         if expiry_status == "proximo_expiracao":
-            return {"value": "proximo_expiracao", "label": "Expira em breve", "tone": "warning"}
+            return {
+                "value": "proximo_expiracao",
+                "label": "Expira em breve",
+                "tone": "warning",
+            }
         return {"value": "presente", "label": "HTTPS ativo", "tone": "success"}
 
     @staticmethod
-    def _tls_certificate_status_badge(expiry_status: str, ssl_active: bool) -> dict[str, str]:
+    def _tls_certificate_status_badge(
+        expiry_status: str, ssl_active: bool
+    ) -> dict[str, str]:
         if not ssl_active:
             return {"value": "ausente", "label": "Sem HTTPS", "tone": "danger"}
         if expiry_status == "expirado":
             return {"value": "expirado", "label": "Expirado", "tone": "danger"}
         if expiry_status == "proximo_expiracao":
-            return {"value": "proximo_expiracao", "label": "Expirando", "tone": "warning"}
+            return {
+                "value": "proximo_expiracao",
+                "label": "Expirando",
+                "tone": "warning",
+            }
         if expiry_status == "ok":
             return {"value": "ok", "label": "Valido", "tone": "success"}
         return {"value": "desconhecido", "label": "Desconhecido", "tone": "neutral"}
 
     @staticmethod
-    def _mail_tls_badge(starttls_supported: bool | None, certificate_valid: bool | None) -> dict[str, str]:
+    def _mail_tls_badge(
+        starttls_supported: bool | None, certificate_valid: bool | None
+    ) -> dict[str, str]:
         if starttls_supported is False:
             return {"value": "ausente", "label": "Sem STARTTLS", "tone": "warning"}
         if certificate_valid is False:
-            return {"value": "invalido", "label": "Certificado invalido", "tone": "warning"}
+            return {
+                "value": "invalido",
+                "label": "Certificado invalido",
+                "tone": "warning",
+            }
         return {"value": "presente", "label": "TLS observado", "tone": "success"}
 
     @staticmethod
@@ -1100,9 +1536,17 @@ class ReportPresenter:
         if expiry_status == "expirado":
             return {"value": "expirado", "label": "Expirado", "tone": "danger"}
         if expiry_status == "proximo_expiracao":
-            return {"value": "proximo_expiracao", "label": "Expira em breve", "tone": "warning"}
+            return {
+                "value": "proximo_expiracao",
+                "label": "Expira em breve",
+                "tone": "warning",
+            }
         if available:
-            return {"value": "presente", "label": "Registro consultado", "tone": "success"}
+            return {
+                "value": "presente",
+                "label": "Registro consultado",
+                "tone": "success",
+            }
         return {"value": "ausente", "label": "Registro indisponivel", "tone": "warning"}
 
     @staticmethod
@@ -1110,7 +1554,11 @@ class ReportPresenter:
         if expiry_status == "expirado":
             return {"value": "expirado", "label": "Expirado", "tone": "danger"}
         if expiry_status == "proximo_expiracao":
-            return {"value": "proximo_expiracao", "label": "Expirando", "tone": "warning"}
+            return {
+                "value": "proximo_expiracao",
+                "label": "Expirando",
+                "tone": "warning",
+            }
         if expiry_status == "ok":
             return {"value": "ok", "label": "OK", "tone": "success"}
         return {"value": "desconhecido", "label": "Desconhecido", "tone": "neutral"}
@@ -1118,8 +1566,16 @@ class ReportPresenter:
     @staticmethod
     def _ip_badge(has_public_ip: bool) -> dict[str, str]:
         if has_public_ip:
-            return {"value": "presente", "label": "IP publico observado", "tone": "success"}
-        return {"value": "desconhecido", "label": "Sem IP publico util", "tone": "warning"}
+            return {
+                "value": "presente",
+                "label": "IP publico observado",
+                "tone": "success",
+            }
+        return {
+            "value": "desconhecido",
+            "label": "Sem IP publico util",
+            "tone": "warning",
+        }
 
     @staticmethod
     def _ip_summary(ip_info) -> str:

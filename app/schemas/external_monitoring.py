@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field
 
-from app.schemas.monitoring import MonitoredDomainSummary, MonitoringDomainDetailResponse
+from app.schemas.monitoring import (
+    MonitoredDomainSummary,
+    MonitoringDomainDetailResponse,
+)
 
 
 class ExternalMonitoringListResponse(BaseModel):

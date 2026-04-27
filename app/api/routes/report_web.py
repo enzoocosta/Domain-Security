@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from app.api.routes.error_utils import get_http_status_code
+from app.core.limiter import limiter
 from app.core.exceptions import DomainSecurityError
 from app.services.report_export_service import ReportExportService
 
@@ -9,7 +10,8 @@ service = ReportExportService()
 
 
 @router.get("/reports/{domain}.pdf")
-def export_report_pdf(domain: str) -> Response:
+@limiter.limit("5/minute")
+def export_report_pdf(request: Request, domain: str) -> Response:
     try:
         filename, content = service.export_latest_pdf(domain)
     except DomainSecurityError as exc:

@@ -15,7 +15,10 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.db.models import MonitoredDomain, TrafficIncident, User
 from app.db.session import SessionLocal
-from app.services.email_delivery_service import EmailDeliveryService, EmailMessagePayload
+from app.services.email_delivery_service import (
+    EmailDeliveryService,
+    EmailMessagePayload,
+)
 
 
 class MonitoringPlusAlertService:
@@ -37,7 +40,9 @@ class MonitoringPlusAlertService:
             incidents = db.scalars(
                 select(TrafficIncident)
                 .options(
-                    selectinload(TrafficIncident.monitored_domain).selectinload(MonitoredDomain.user)
+                    selectinload(TrafficIncident.monitored_domain).selectinload(
+                        MonitoredDomain.user
+                    )
                 )
                 .where(
                     TrafficIncident.status == "open",
@@ -57,7 +62,9 @@ class MonitoringPlusAlertService:
                 domain = items[0].monitored_domain
                 if domain is None:
                     continue
-                attempted += self._dispatch_for_domain(db, domain=domain, incidents=items)
+                attempted += self._dispatch_for_domain(
+                    db, domain=domain, incidents=items
+                )
 
             db.commit()
             return attempted
@@ -72,13 +79,20 @@ class MonitoringPlusAlertService:
         current_time = self._utcnow()
         user: User | None = domain.user
         preference = getattr(user, "notification_preference", None) if user else None
+        recipients = self._resolve_recipients(domain=domain)
 
-        if user is None or not user.email or preference is None or not preference.email_alerts_enabled:
+        if (
+            user is None
+            or not user.email
+            or preference is None
+            or not preference.email_alerts_enabled
+            or not recipients
+        ):
             self._mark(incidents, status="skipped", attempted_at=current_time)
             return len(incidents)
 
         payload = EmailMessagePayload(
-            recipient=user.email,
+            recipient=", ".join(recipients),
             subject=self._build_subject(domain.normalized_domain, incidents),
             text_body=self._build_body(domain=domain, incidents=incidents),
         )
@@ -102,10 +116,16 @@ class MonitoringPlusAlertService:
         return len(incidents)
 
     def _build_subject(self, domain: str, incidents: list[TrafficIncident]) -> str:
-        highest = max(incidents, key=lambda item: self._SEVERITY_ORDER.get(item.severity, 0))
-        return f"[Monitoring Plus] {domain} - {highest.severity.upper()}: {highest.title}"
+        highest = max(
+            incidents, key=lambda item: self._SEVERITY_ORDER.get(item.severity, 0)
+        )
+        return (
+            f"[Monitoring Plus] {domain} - {highest.severity.upper()}: {highest.title}"
+        )
 
-    def _build_body(self, *, domain: MonitoredDomain, incidents: list[TrafficIncident]) -> str:
+    def _build_body(
+        self, *, domain: MonitoredDomain, incidents: list[TrafficIncident]
+    ) -> str:
         lines = [
             "O Monitoring Plus detectou comportamento suspeito no seu dominio.",
             "",
@@ -140,6 +160,20 @@ class MonitoringPlusAlertService:
             incident.email_last_attempt_at = attempted_at
             incident.email_sent_at = sent_at
             incident.email_last_error = error
+
+    @staticmethod
+    def _resolve_recipients(*, domain: MonitoredDomain) -> list[str]:
+        contacts = [
+            item.strip().lower()
+            for item in (domain.alert_contacts or [])
+            if item and item.strip()
+        ]
+        if contacts:
+            return contacts
+        user = domain.user
+        if user is None or not user.email:
+            return []
+        return [user.email.strip().lower()]
 
     @staticmethod
     def _utcnow() -> datetime:

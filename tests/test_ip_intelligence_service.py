@@ -1,6 +1,9 @@
 from app.services.dns_service import IPAddressValue
 from app.services.ip_intelligence_service import IPIntelligenceService
-from app.services.providers.geoip_provider import DisabledGeoIPProvider, GeoIPLookupResult
+from app.services.providers.geoip_provider import (
+    DisabledGeoIPProvider,
+    GeoIPLookupResult,
+)
 from tests.fakes import StubDNSService
 
 
@@ -17,8 +20,18 @@ class StubGeoIPProvider:
 def test_ip_intelligence_selects_public_primary_and_enriches_context():
     dns_service = StubDNSService(
         ip_records=[
-            IPAddressValue(address="10.0.0.4", version="ipv4", source_record_type="A", is_public=False),
-            IPAddressValue(address="93.184.216.34", version="ipv4", source_record_type="A", is_public=True),
+            IPAddressValue(
+                address="10.0.0.4",
+                version="ipv4",
+                source_record_type="A",
+                is_public=False,
+            ),
+            IPAddressValue(
+                address="93.184.216.34",
+                version="ipv4",
+                source_record_type="A",
+                is_public=True,
+            ),
             IPAddressValue(
                 address="2606:2800:220:1:248:1893:25c8:1946",
                 version="ipv6",
@@ -52,7 +65,9 @@ def test_ip_intelligence_selects_public_primary_and_enriches_context():
             confidence_note="Dados MaxMind sao aproximados.",
         )
     )
-    service = IPIntelligenceService(dns_service=dns_service, geoip_provider=geoip_provider)
+    service = IPIntelligenceService(
+        dns_service=dns_service, geoip_provider=geoip_provider
+    )
 
     result = service.analyze("example.com")
 
@@ -76,7 +91,12 @@ def test_ip_intelligence_selects_public_primary_and_enriches_context():
 def test_ip_intelligence_gracefully_handles_missing_geoip_configuration():
     dns_service = StubDNSService(
         ip_records=[
-            IPAddressValue(address="93.184.216.34", version="ipv4", source_record_type="A", is_public=True),
+            IPAddressValue(
+                address="93.184.216.34",
+                version="ipv4",
+                source_record_type="A",
+                is_public=True,
+            ),
         ],
         reverse_dns="edge.example.net",
     )
@@ -102,7 +122,12 @@ def test_ip_intelligence_gracefully_handles_missing_geoip_configuration():
 def test_ip_intelligence_uses_ipwhois_fallback_when_geoip_is_unavailable():
     dns_service = StubDNSService(
         ip_records=[
-            IPAddressValue(address="93.184.216.34", version="ipv4", source_record_type="A", is_public=True),
+            IPAddressValue(
+                address="93.184.216.34",
+                version="ipv4",
+                source_record_type="A",
+                is_public=True,
+            ),
         ],
         reverse_dns="edge.example.net",
     )
@@ -136,7 +161,12 @@ def test_ip_intelligence_uses_ipwhois_fallback_when_geoip_is_unavailable():
 def test_ip_intelligence_skips_geoip_for_non_public_ip():
     dns_service = StubDNSService(
         ip_records=[
-            IPAddressValue(address="10.0.0.4", version="ipv4", source_record_type="A", is_public=False),
+            IPAddressValue(
+                address="10.0.0.4",
+                version="ipv4",
+                source_record_type="A",
+                is_public=False,
+            ),
         ],
     )
     geoip_provider = StubGeoIPProvider(
@@ -147,7 +177,9 @@ def test_ip_intelligence_skips_geoip_for_non_public_ip():
             country_code="US",
         )
     )
-    service = IPIntelligenceService(dns_service=dns_service, geoip_provider=geoip_provider)
+    service = IPIntelligenceService(
+        dns_service=dns_service, geoip_provider=geoip_provider
+    )
 
     result = service.analyze("example.com")
 

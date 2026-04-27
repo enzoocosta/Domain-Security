@@ -21,7 +21,7 @@
     </div>
   {% endcall %}
 
-  {% call render_section_card("Dominios premium", "Inventario", "Cada card resume estado comercial, volume recente e incidente mais recente.") %}
+  {% call render_section_card("Dominios premium", "Inventario", "Cada card resume plano, intervalo, score tecnico recente e incidente mais novo.") %}
     {% if dashboard.items %}
       <div class="timeline-list">
         {% for item in dashboard.items %}
@@ -35,9 +35,15 @@
               </div>
               <span class="badge badge--{{ item.subscription_status or 'neutral' }}">{{ item.subscription_status | humanize_token if item.subscription_status else 'Sem assinatura' }}</span>
             </div>
+            {% if item.scheduler_warning %}
+              <p class="detail-card__note">{{ item.scheduler_warning }}</p>
+            {% endif %}
             <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Plano", item.plan | humanize_token, "neutral") }}
+              {{ render_metric_card("Intervalo", item.check_interval_minutes | format_interval_minutes, "neutral") }}
               {{ render_metric_card("Cobertura", "Ativa" if item.is_entitled else "Inativa", "success" if item.is_entitled else "warning") }}
               {{ render_metric_card("Trial restante", item.days_left_in_trial if item.days_left_in_trial is not none else "-", "info") }}
+              {{ render_metric_card("Ultimo score", item.latest_score if item.latest_score is not none else "-", "info") }}
               {{ render_metric_card("Incidentes abertos", item.open_incidents, "danger" if item.open_incidents else "neutral") }}
               {{ render_metric_card("Ultimo incidente", item.last_incident_at | format_datetime if item.last_incident_at else "nenhum", "neutral") }}
             </div>

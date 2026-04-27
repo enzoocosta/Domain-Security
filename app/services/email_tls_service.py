@@ -43,8 +43,12 @@ class EmailTLSService:
 
         prioritized_records = self._select_prioritized_records(mx_records)
         probe_limited = len(prioritized_records) < len(mx_records)
-        probe_note = self._build_probe_note(len(prioritized_records), len(mx_records), probe_limited)
-        results = [self.probe_func(record.exchange, 25) for record in prioritized_records]
+        probe_note = self._build_probe_note(
+            len(prioritized_records), len(mx_records), probe_limited
+        )
+        results = [
+            self.probe_func(record.exchange, 25) for record in prioritized_records
+        ]
         return EmailTLSResult(
             mx_results=results,
             has_email_tls_data=any(item.has_tls_data for item in results),
@@ -52,7 +56,9 @@ class EmailTLSService:
             tested_mx_count=len(prioritized_records),
             probe_limited=probe_limited,
             probe_note=probe_note,
-            message=self._build_message(results, len(prioritized_records), len(mx_records), probe_limited),
+            message=self._build_message(
+                results, len(prioritized_records), len(mx_records), probe_limited
+            ),
             note=self.CERTIFICATE_NOTE,
         )
 
@@ -78,7 +84,12 @@ class EmailTLSService:
                 port=port,
                 error=f"Timeout ao testar STARTTLS: {exc}",
             )
-        except (ConnectionRefusedError, OSError, smtplib.SMTPException, ssl.SSLError) as exc:
+        except (
+            ConnectionRefusedError,
+            OSError,
+            smtplib.SMTPException,
+            ssl.SSLError,
+        ) as exc:
             return EmailTLSMXResult(
                 host=host,
                 port=port,
@@ -86,7 +97,9 @@ class EmailTLSService:
             )
 
     def _run_starttls_probe(self, host: str, port: int, *, verify: bool) -> dict:
-        context = ssl.create_default_context() if verify else ssl._create_unverified_context()
+        context = (
+            ssl.create_default_context() if verify else ssl._create_unverified_context()
+        )
         with smtplib.SMTP(host=host, port=port, timeout=self.timeout_seconds) as client:
             client.ehlo_or_helo_if_needed()
             if not client.has_extn("starttls"):
@@ -191,12 +204,18 @@ class EmailTLSService:
         except ssl.CertificateError:
             return False
 
-    def _select_prioritized_records(self, mx_records: list[MXRecordValue]) -> list[MXRecordValue]:
-        sorted_records = sorted(mx_records, key=lambda item: (item.preference, item.exchange))
+    def _select_prioritized_records(
+        self, mx_records: list[MXRecordValue]
+    ) -> list[MXRecordValue]:
+        sorted_records = sorted(
+            mx_records, key=lambda item: (item.preference, item.exchange)
+        )
         return sorted_records[: self.mx_probe_limit]
 
     @staticmethod
-    def _build_probe_note(tested_count: int, total_count: int, probe_limited: bool) -> str | None:
+    def _build_probe_note(
+        tested_count: int, total_count: int, probe_limited: bool
+    ) -> str | None:
         if not probe_limited:
             return None
         return (

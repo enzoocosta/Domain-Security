@@ -1,4 +1,10 @@
-from app.schemas.analysis import AnalysisChecks, DomainRegistrationResult, Finding, Recommendation, WebsiteTLSResult
+from app.schemas.analysis import (
+    AnalysisChecks,
+    DomainRegistrationResult,
+    Finding,
+    Recommendation,
+    WebsiteTLSResult,
+)
 
 
 class RecommendationService:
@@ -25,7 +31,9 @@ class RecommendationService:
         recommendations.extend(self._dmarc_recommendations(checks))
         recommendations.extend(self._dkim_recommendations(checks))
         recommendations.extend(self._website_tls_recommendations(website_tls))
-        recommendations.extend(self._domain_registration_recommendations(domain_registration))
+        recommendations.extend(
+            self._domain_registration_recommendations(domain_registration)
+        )
         return sorted(recommendations, key=self._priority_sort_key)
 
     @staticmethod
@@ -246,7 +254,9 @@ class RecommendationService:
         ]
 
     @staticmethod
-    def _website_tls_recommendations(website_tls: WebsiteTLSResult) -> list[Recommendation]:
+    def _website_tls_recommendations(
+        website_tls: WebsiteTLSResult,
+    ) -> list[Recommendation]:
         if not website_tls.ssl_active:
             return [
                 Recommendation(

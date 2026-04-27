@@ -43,8 +43,10 @@ def monitoring_plus_dashboard(request: Request) -> HTMLResponse:
 def activate_monitoring_plus(
     request: Request,
     domain: Annotated[str, Form(max_length=320)],
-    monitoring_frequency: Annotated[str, Form(max_length=16)] = "daily",
+    monitoring_frequency: Annotated[str | None, Form(max_length=16)] = None,
+    check_interval_minutes: Annotated[int, Form()] = 60,
     input_label: Annotated[str | None, Form(max_length=255)] = None,
+    alert_contacts: Annotated[str | None, Form()] = None,
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
@@ -54,7 +56,9 @@ def activate_monitoring_plus(
         payload = MonitoringPlusActivationInput(
             domain=domain,
             monitoring_frequency=monitoring_frequency,
+            check_interval_minutes=check_interval_minutes,
             input_label=input_label,
+            alert_contacts=_parse_alert_contacts(alert_contacts),
         )
         detail = monitoring_plus_service.activate_from_offer(
             user_id=current_user.id, payload=payload
@@ -84,9 +88,7 @@ def monitoring_plus_domain_detail(
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     return _render_domain_detail(
         request,
         user_id=current_user.id,
@@ -102,9 +104,7 @@ def monitoring_plus_domain_detail(
 def cancel_subscription(request: Request, monitored_domain_id: int) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     try:
         monitoring_plus_service.cancel_subscription(
             user_id=current_user.id, monitored_domain_id=monitored_domain_id
@@ -130,9 +130,7 @@ def cancel_subscription(request: Request, monitored_domain_id: int) -> HTMLRespo
 def restart_trial(request: Request, monitored_domain_id: int) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     try:
         monitoring_plus_service.restart_trial(
             user_id=current_user.id, monitored_domain_id=monitored_domain_id
@@ -162,14 +160,39 @@ def resolve_incident(
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     try:
         monitoring_plus_service.resolve_incident(
             user_id=current_user.id,
             monitored_domain_id=monitored_domain_id,
             incident_id=incident_id,
+        )
+    except DomainSecurityError as exc:
+        return _render_domain_detail(
+            request,
+            user_id=current_user.id,
+            monitored_domain_id=monitored_domain_id,
+            error=str(exc),
+            status_code=get_http_status_code(exc),
+        )
+    return RedirectResponse(
+        url=f"/monitoring-plus/domains/{monitored_domain_id}",
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+@router.post(
+    "/monitoring-plus/domains/{monitored_domain_id}/run-now",
+    response_class=HTMLResponse,
+)
+def run_check_now(request: Request, monitored_domain_id: int) -> HTMLResponse:
+    current_user = auth_service.get_user_session(request)
+    if current_user is None:
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
+    try:
+        monitoring_plus_service.monitoring_service.run_check_now(
+            user_id=current_user.id,
+            monitored_domain_id=monitored_domain_id,
         )
     except DomainSecurityError as exc:
         return _render_domain_detail(
@@ -196,9 +219,7 @@ def create_ingest_token(
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     try:
         result = ingest_token_service.create_token(
             user_id=current_user.id,
@@ -215,8 +236,7 @@ def create_ingest_token(
         )
     return RedirectResponse(
         url=(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-            f"?new_token={result.token}"
+            f"/monitoring-plus/domains/{monitored_domain_id}?new_token={result.token}"
         ),
         status_code=status.HTTP_303_SEE_OTHER,
     )
@@ -233,9 +253,7 @@ def revoke_ingest_token(
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return _redirect_to_login(
-            f"/monitoring-plus/domains/{monitored_domain_id}"
-        )
+        return _redirect_to_login(f"/monitoring-plus/domains/{monitored_domain_id}")
     try:
         ingest_token_service.revoke_token(
             user_id=current_user.id,
@@ -325,3 +343,14 @@ def _render_domain_detail(
 def _redirect_to_login(next_path: str) -> RedirectResponse:
     target = f"/auth/login?next={quote(next_path, safe='/')}"
     return RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
+
+
+def _parse_alert_contacts(raw_value: str | None) -> list[str]:
+    if raw_value is None:
+        return []
+    return [
+        item.strip()
+        for chunk in raw_value.replace(";", ",").split(",")
+        for item in chunk.splitlines()
+        if item.strip()
+    ]

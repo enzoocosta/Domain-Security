@@ -1,5 +1,3 @@
-from datetime import UTC, datetime
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -131,7 +129,9 @@ def _build_response(
             current_severity=severity,
         ),
         findings=[
-            Finding(category="spf", severity="medio", title=item, detail=f"Detalhe {item}.")
+            Finding(
+                category="spf", severity="medio", title=item, detail=f"Detalhe {item}."
+            )
             for item in findings
         ],
         recommendations=[
@@ -155,7 +155,9 @@ def _build_service() -> AnalysisHistoryService:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    TestingSessionLocal = sessionmaker(
+        bind=engine, autoflush=False, autocommit=False, expire_on_commit=False
+    )
     Base.metadata.create_all(bind=engine)
     return AnalysisHistoryService(session_factory=TestingSessionLocal)
 

@@ -39,7 +39,9 @@ def test_mta_sts_analysis_parses_dns_and_policy():
     )
     service = EmailPolicyService(
         dns_service=dns_service,
-        policy_fetcher=lambda url, timeout: "version: STSv1\nmode: enforce\nmax_age: 86400\nmx: mail.example.com\n",
+        policy_fetcher=lambda url, timeout: (
+            "version: STSv1\nmode: enforce\nmax_age: 86400\nmx: mail.example.com\n"
+        ),
     )
 
     result = service.analyze(
@@ -59,7 +61,9 @@ def test_mta_sts_analysis_parses_dns_and_policy():
 def test_tls_rpt_and_bimi_readiness_are_reported_honestly():
     dns_service = StubDNSService(
         txt_records={
-            "_smtp._tls.example.com": ["v=TLSRPTv1; rua=mailto:tls@example.com,https://reports.example.com"],
+            "_smtp._tls.example.com": [
+                "v=TLSRPTv1; rua=mailto:tls@example.com,https://reports.example.com"
+            ],
             "default._bimi.example.com": ["v=BIMI1; l=https://example.com/logo.svg"],
         },
     )
@@ -72,7 +76,10 @@ def test_tls_rpt_and_bimi_readiness_are_reported_honestly():
     result = service.analyze("example.com", dmarc_result=dmarc)
 
     assert result.tls_rpt.status == "presente"
-    assert result.tls_rpt.rua == ["mailto:tls@example.com", "https://reports.example.com"]
+    assert result.tls_rpt.rua == [
+        "mailto:tls@example.com",
+        "https://reports.example.com",
+    ]
     assert result.bimi.status == "presente"
     assert result.bimi.readiness == "parcial"
     assert "DMARC" in result.bimi.dmarc_dependency

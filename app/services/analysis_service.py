@@ -4,7 +4,12 @@ from time import perf_counter
 from typing import Any
 
 from app.core.analysis_cache import AnalysisCache
-from app.core.exceptions import DNSDomainNotFoundError, DNSLookupError, DNSNoResponseError, DNSTimeoutError
+from app.core.exceptions import (
+    DNSDomainNotFoundError,
+    DNSLookupError,
+    DNSNoResponseError,
+    DNSTimeoutError,
+)
 from app.schemas.analysis import (
     AnalysisChecks,
     AnalysisPerformance,
@@ -70,8 +75,12 @@ class DomainAnalysisService:
         self.email_auth_service = email_auth_service or EmailAuthenticationService()
         self.website_tls_service = website_tls_service or WebsiteTLSService()
         self.email_tls_service = email_tls_service or EmailTLSService()
-        self.email_policy_service = email_policy_service or EmailPolicyService(dns_service=self.dns_service)
-        self.domain_registration_service = domain_registration_service or DomainRegistrationService()
+        self.email_policy_service = email_policy_service or EmailPolicyService(
+            dns_service=self.dns_service
+        )
+        self.domain_registration_service = (
+            domain_registration_service or DomainRegistrationService()
+        )
         self.ip_intelligence_service = ip_intelligence_service or IPIntelligenceService(
             dns_service=self.dns_service
         )
@@ -80,14 +89,20 @@ class DomainAnalysisService:
         self.history_service = history_service or AnalysisHistoryService()
         self.analysis_cache = analysis_cache or AnalysisCache()
 
-    def analyze_target(self, target: str, *, force_refresh: bool = False) -> AnalysisResponse:
+    def analyze_target(
+        self, target: str, *, force_refresh: bool = False
+    ) -> AnalysisResponse:
         total_started_at = perf_counter()
 
         normalized_started_at = perf_counter()
         normalized = normalize_target(target)
         normalize_ms = self._elapsed_ms(normalized_started_at)
 
-        cached_payload = None if force_refresh else self.analysis_cache.get(normalized.analysis_domain)
+        cached_payload = (
+            None
+            if force_refresh
+            else self.analysis_cache.get(normalized.analysis_domain)
+        )
         if cached_payload is not None:
             return self._build_cached_response(
                 cached_payload,
@@ -96,16 +111,28 @@ class DomainAnalysisService:
                 total_started_at=total_started_at,
             )
 
-        with ThreadPoolExecutor(max_workers=self.MAX_PARALLEL_WORKERS, thread_name_prefix="dsc-analysis") as executor:
-            mx_future = executor.submit(self._run_timed_stage, self._load_mx_stage, normalized.analysis_domain)
-            spf_future = executor.submit(self._run_timed_stage, self._load_spf_stage, normalized.analysis_domain)
-            dmarc_future = executor.submit(self._run_timed_stage, self._load_dmarc_stage, normalized.analysis_domain)
+        with ThreadPoolExecutor(
+            max_workers=self.MAX_PARALLEL_WORKERS, thread_name_prefix="dsc-analysis"
+        ) as executor:
+            mx_future = executor.submit(
+                self._run_timed_stage, self._load_mx_stage, normalized.analysis_domain
+            )
+            spf_future = executor.submit(
+                self._run_timed_stage, self._load_spf_stage, normalized.analysis_domain
+            )
+            dmarc_future = executor.submit(
+                self._run_timed_stage,
+                self._load_dmarc_stage,
+                normalized.analysis_domain,
+            )
 
             mx_stage = mx_future.result()
             spf_stage = spf_future.result()
             dmarc_stage = dmarc_future.result()
 
-            dkim_future = executor.submit(self._run_timed_stage, self._load_dkim_stage, normalized.analysis_domain)
+            dkim_future = executor.submit(
+                self._run_timed_stage, self._load_dkim_stage, normalized.analysis_domain
+            )
             email_policy_future = executor.submit(
                 self._run_timed_stage,
                 self._load_email_policies_stage,
@@ -160,7 +187,9 @@ class DomainAnalysisService:
             website_tls=website_tls,
             domain_registration=domain_registration,
         )
-        notes = self._build_notes(checks, website_tls, email_tls, domain_registration, email_policies)
+        notes = self._build_notes(
+            checks, website_tls, email_tls, domain_registration, email_policies
+        )
         notes.extend(ip_intelligence.notes)
         notes = self._dedupe_notes(notes)
         summary = self._build_summary(
@@ -204,9 +233,13 @@ class DomainAnalysisService:
             notes=notes,
         )
 
-        final_result = self.history_service.record_analysis(response, input_target=target)
+        final_result = self.history_service.record_analysis(
+            response, input_target=target
+        )
         if not force_refresh:
-            self.analysis_cache.set(normalized.analysis_domain, final_result.model_dump(mode="json"))
+            self.analysis_cache.set(
+                normalized.analysis_domain, final_result.model_dump(mode="json")
+            )
         return final_result
 
     def _run_timed_stage(self, func, *args) -> TimedStageResult:
@@ -266,12 +299,16 @@ class DomainAnalysisService:
             raise
         except (DNSTimeoutError, DNSNoResponseError) as exc:
             return self._build_spf_lookup_error_result(domain, exc)
-        return self.email_auth_service.analyze_spf(domain, txt_records, dns_service=self.dns_service)
+        return self.email_auth_service.analyze_spf(
+            domain, txt_records, dns_service=self.dns_service
+        )
 
     def _load_dmarc_stage(self, domain: str) -> DMARCCheckResult:
         checked_name = f"_dmarc.{domain}"
         try:
-            txt_records = self.dns_service.get_txt_records(checked_name, missing_on_nxdomain=True)
+            txt_records = self.dns_service.get_txt_records(
+                checked_name, missing_on_nxdomain=True
+            )
         except (DNSTimeoutError, DNSNoResponseError) as exc:
             return self._build_dmarc_lookup_error_result(checked_name, exc)
         return self.email_auth_service.analyze_dmarc(checked_name, txt_records)
@@ -320,7 +357,10 @@ class DomainAnalysisService:
         except Exception as exc:
             return IPIntelligenceResult(
                 message="Nao foi possivel concluir a inteligencia de IP para o website.",
-                notes=[str(exc), "A analise principal seguiu sem o enriquecimento adicional de IP."],
+                notes=[
+                    str(exc),
+                    "A analise principal seguiu sem o enriquecimento adicional de IP.",
+                ],
                 source="DNS",
             )
 
@@ -354,10 +394,12 @@ class DomainAnalysisService:
                 probe_note=None,
             )
 
-    def _load_email_policies_stage(self, domain: str, dmarc_result: DMARCCheckResult) -> EmailPolicyResult:
+    def _load_email_policies_stage(
+        self, domain: str, dmarc_result: DMARCCheckResult
+    ) -> EmailPolicyResult:
         try:
             return self.email_policy_service.analyze(domain, dmarc_result=dmarc_result)
-        except Exception as exc:
+        except Exception:
             return EmailPolicyResult()
 
     @staticmethod
@@ -366,7 +408,11 @@ class DomainAnalysisService:
             MXRecord(preference=record.preference, exchange=record.exchange)
             for record in records
         ]
-        if len(records) == 1 and records[0].exchange == "." and records[0].preference == 0:
+        if (
+            len(records) == 1
+            and records[0].exchange == "."
+            and records[0].preference == 0
+        ):
             return MXCheckResult(
                 checked_name=domain,
                 status="presente",
@@ -415,7 +461,9 @@ class DomainAnalysisService:
         )
 
     @staticmethod
-    def _build_dmarc_lookup_error_result(checked_name: str, exc: Exception) -> DMARCCheckResult:
+    def _build_dmarc_lookup_error_result(
+        checked_name: str, exc: Exception
+    ) -> DMARCCheckResult:
         return DMARCCheckResult(
             checked_name=checked_name,
             status="ausente",
@@ -432,8 +480,14 @@ class DomainAnalysisService:
         website_tls: WebsiteTLSResult,
         email_tls: EmailTLSResult,
     ) -> str:
-        website_label = "HTTPS ativo" if website_tls.ssl_active else "HTTPS nao confirmado"
-        email_label = "STARTTLS observado" if email_tls.has_email_tls_data else "STARTTLS inconclusivo"
+        website_label = (
+            "HTTPS ativo" if website_tls.ssl_active else "HTTPS nao confirmado"
+        )
+        email_label = (
+            "STARTTLS observado"
+            if email_tls.has_email_tls_data
+            else "STARTTLS inconclusivo"
+        )
         return (
             f"Postura geral {severity} ({score}/100). "
             f"{website_label}; {email_label} na camada de e-mail."
@@ -461,21 +515,37 @@ class DomainAnalysisService:
         if email_tls.probe_note:
             notes.append(email_tls.probe_note)
         if checks.mx.lookup_error:
-            notes.append("A consulta de MX falhou temporariamente e a analise seguiu com resultado parcial.")
+            notes.append(
+                "A consulta de MX falhou temporariamente e a analise seguiu com resultado parcial."
+            )
         if checks.spf.lookup_error:
-            notes.append("A consulta SPF falhou temporariamente e a analise seguiu com resultado parcial.")
+            notes.append(
+                "A consulta SPF falhou temporariamente e a analise seguiu com resultado parcial."
+            )
         if checks.dmarc.lookup_error:
-            notes.append("A consulta DMARC falhou temporariamente e a analise seguiu com resultado parcial.")
+            notes.append(
+                "A consulta DMARC falhou temporariamente e a analise seguiu com resultado parcial."
+            )
         if checks.dkim.lookup_error:
-            notes.append("A heuristica DKIM ficou inconclusiva por indisponibilidade temporaria de DNS.")
+            notes.append(
+                "A heuristica DKIM ficou inconclusiva por indisponibilidade temporaria de DNS."
+            )
         if website_tls.error and not website_tls.ssl_active:
-            notes.append("A verificacao de HTTPS do website retornou resultado parcial ou inconclusivo.")
+            notes.append(
+                "A verificacao de HTTPS do website retornou resultado parcial ou inconclusivo."
+            )
         if domain_registration.error:
-            notes.append("A consulta de registro do dominio pode estar parcial por indisponibilidade de WHOIS ou fallback secundario.")
+            notes.append(
+                "A consulta de registro do dominio pode estar parcial por indisponibilidade de WHOIS ou fallback secundario."
+            )
         if email_policies.mta_sts.warnings:
-            notes.append("MTA-STS foi localizado com inconsistencias ou cobertura parcial.")
+            notes.append(
+                "MTA-STS foi localizado com inconsistencias ou cobertura parcial."
+            )
         if email_policies.tls_rpt.warnings:
-            notes.append("TLS-RPT foi localizado, mas requer revisao dos destinos ou do formato.")
+            notes.append(
+                "TLS-RPT foi localizado, mas requer revisao dos destinos ou do formato."
+            )
         if email_policies.bimi.dmarc_dependency:
             notes.append(email_policies.bimi.dmarc_dependency)
         notes.extend(email_policies.dnssec.notes)

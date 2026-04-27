@@ -9,7 +9,11 @@ router = APIRouter(tags=["history"])
 service = AnalysisHistoryService()
 
 
-@router.get("/history/{domain}", response_model=DomainHistoryResponse, summary="Listar historico por dominio")
+@router.get(
+    "/history/{domain}",
+    response_model=DomainHistoryResponse,
+    summary="Listar historico por dominio",
+)
 def get_history(domain: str) -> DomainHistoryResponse:
     try:
         return service.list_history(domain)

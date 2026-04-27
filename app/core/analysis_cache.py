@@ -16,7 +16,11 @@ class AnalysisCache:
     """Thread-safe in-memory cache with short TTL for completed analyses."""
 
     def __init__(self, ttl_seconds: int | None = None) -> None:
-        self.ttl_seconds = settings.analysis_cache_ttl_seconds if ttl_seconds is None else max(0, ttl_seconds)
+        self.ttl_seconds = (
+            settings.analysis_cache_ttl_seconds
+            if ttl_seconds is None
+            else max(0, ttl_seconds)
+        )
         self._entries: dict[str, CacheEntry] = {}
         self._lock = RLock()
 

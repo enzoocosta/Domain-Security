@@ -15,9 +15,10 @@ from app.services.monitoring_plus_service import MonitoringPlusService
 
 class MonitoringPlusOfferPresenter:
     _FREQUENCY_OPTIONS = (
-        {"value": "daily", "label": "Diario"},
-        {"value": "weekly", "label": "Semanal"},
-        {"value": "monthly", "label": "Mensal"},
+        {"value": "60", "label": "1 hora"},
+        {"value": "360", "label": "6 horas"},
+        {"value": "1440", "label": "24 horas"},
+        {"value": "10080", "label": "7 dias"},
     )
 
     def __init__(self, monitoring_plus_service: MonitoringPlusService | None = None):
@@ -50,8 +51,7 @@ class MonitoringPlusOfferPresenter:
 
         requires_auth = user_id is None
         is_reactivation = (
-            offer_state is not None
-            and offer_state.monitored_domain_id is not None
+            offer_state is not None and offer_state.monitored_domain_id is not None
         )
         login_next = quote("/monitoring-plus", safe="/")
 
@@ -60,7 +60,7 @@ class MonitoringPlusOfferPresenter:
             "input_label": default_label,
             "score_label": f"Score atual: {analysis_result.score}",
             "severity_label": f"Severidade atual: {analysis_result.severity}",
-            "monitoring_frequency": "daily",
+            "check_interval_minutes": 60,
             "frequency_options": self.monitoring_frequency_options(),
             "show_offer": True,
             "requires_auth": requires_auth,
@@ -74,13 +74,12 @@ class MonitoringPlusOfferPresenter:
             ),
             "highlights": [
                 "Cria um painel tecnico por dominio com incidentes e estado da assinatura.",
+                "Check sob demanda e multiplos contatos de alerta ficam disponiveis no plano Plus.",
                 "A deteccao depende da telemetria recebida. Sem ingestao, nao ha incidentes para analisar.",
                 f"Teste previsto: {settings.monitoring_plus_trial_days} dias.",
             ],
             "submit_label": (
-                "Reativar teste tecnico"
-                if is_reactivation
-                else "Ativar teste tecnico"
+                "Reativar teste tecnico" if is_reactivation else "Ativar teste tecnico"
             ),
             "auth_login_href": f"/auth/login?next={login_next}",
             "auth_register_href": f"/auth/register?next={login_next}",

@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from app.api.routes.error_utils import get_http_status_code
 from app.core.config import settings
 from app.core.exceptions import DomainSecurityError
+from app.core.limiter import limiter
 from app.presenters import ReportPresenter, configure_template_filters
 from app.presenters.monitoring_plus_offer_presenter import MonitoringPlusOfferPresenter
 from app.services.analysis_history_service import AnalysisHistoryService
@@ -15,7 +16,9 @@ from app.services.analysis_service import DomainAnalysisService
 from app.services.auth_service import AuthenticationService
 
 router = APIRouter(include_in_schema=False)
-templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
+templates = configure_template_filters(
+    Jinja2Templates(directory=str(settings.templates_dir))
+)
 service = DomainAnalysisService()
 history_service = AnalysisHistoryService()
 report_presenter = ReportPresenter()
@@ -68,6 +71,7 @@ def wordpress_technical_report_page(request: Request) -> HTMLResponse:
 
 
 @router.post("/analyze", response_class=HTMLResponse)
+@limiter.limit("10/minute")
 def analyze_from_form(
     request: Request,
     target: Annotated[str, Form(max_length=320)],

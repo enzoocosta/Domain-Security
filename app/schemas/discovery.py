@@ -4,7 +4,9 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-DiscoveryRunStatus = Literal["queued", "running", "completed", "partial", "failed", "unavailable"]
+DiscoveryRunStatus = Literal[
+    "queued", "running", "completed", "partial", "failed", "unavailable"
+]
 
 
 class DiscoveryRunCreateInput(BaseModel):

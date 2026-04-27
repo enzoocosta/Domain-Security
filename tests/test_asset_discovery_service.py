@@ -4,7 +4,10 @@ from app.db.base import Base
 from app.db.session import engine
 from app.services.asset_discovery_service import AssetDiscoveryService
 from app.services.auth_service import AuthenticationService
-from app.services.providers.amass_runner import AssetDiscoveryResult, DiscoveredAssetRecord
+from app.services.providers.amass_runner import (
+    AssetDiscoveryResult,
+    DiscoveredAssetRecord,
+)
 
 
 class StubAmassRunner:
@@ -58,13 +61,18 @@ def test_asset_discovery_service_persists_results_and_marks_new_assets():
     assert first.run.new_asset_count == 2
     assert second.run.asset_count == 2
     assert second.run.new_asset_count == 1
-    assert [item.fqdn for item in second.subdomains] == ["api.example.com", "new.example.com"]
+    assert [item.fqdn for item in second.subdomains] == [
+        "api.example.com",
+        "new.example.com",
+    ]
     assert [item.is_new for item in second.subdomains] == [False, True]
 
 
 def test_asset_discovery_service_handles_unavailable_runner():
     auth_service = AuthenticationService()
-    user = auth_service.register_user("discovery-unavailable@example.com", "supersecret")
+    user = auth_service.register_user(
+        "discovery-unavailable@example.com", "supersecret"
+    )
     runner = StubAmassRunner(
         [
             AssetDiscoveryResult(

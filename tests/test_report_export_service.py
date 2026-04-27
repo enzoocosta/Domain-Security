@@ -1,6 +1,11 @@
 from datetime import UTC, datetime, timedelta
 
-from app.schemas.analysis import DomainRegistrationResult, EmailTLSResult, IPIntelligenceResult, WebsiteTLSResult
+from app.schemas.analysis import (
+    DomainRegistrationResult,
+    EmailTLSResult,
+    IPIntelligenceResult,
+    WebsiteTLSResult,
+)
 from app.services.analysis_service import DomainAnalysisService
 from app.services.dns_service import MXRecordValue
 from app.services.report_export_service import ReportExportService
@@ -74,7 +79,9 @@ def test_report_export_service_builds_pdf_html_and_returns_bytes():
             mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
             txt_records={
                 "example.com": ["v=spf1 include:_spf.example.net -all"],
-                "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:dmarc@example.com"],
+                "_dmarc.example.com": [
+                    "v=DMARC1; p=reject; rua=mailto:dmarc@example.com"
+                ],
                 "default._domainkey.example.com": ["v=DKIM1; p=MIIB"],
             },
         ),
@@ -87,7 +94,9 @@ def test_report_export_service_builds_pdf_html_and_returns_bytes():
                 note="O certificado de e-mail pertence ao servidor MX, nao necessariamente ao dominio principal.",
             )
         ),
-        domain_registration_service=StubDomainRegistrationService(_registration_result()),
+        domain_registration_service=StubDomainRegistrationService(
+            _registration_result()
+        ),
         ip_intelligence_service=StubIPIntelligenceService(_ip_intelligence_result()),
         history_service=StubAnalysisHistoryService(),
     )

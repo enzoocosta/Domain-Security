@@ -10,7 +10,6 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.core.config import settings
 from app.core.exceptions import FeatureUnavailableError
 from app.presenters.pdf_report_presenter import PDFReportPresenter
-from app.schemas.analysis import AnalysisResponse
 from app.services.analysis_history_service import AnalysisHistoryService
 from app.services.analysis_service import DomainAnalysisService
 
@@ -56,7 +55,9 @@ class ReportExportService:
         self.analysis_service = analysis_service or DomainAnalysisService()
         self.presenter = presenter or PDFReportPresenter()
         self.renderer = renderer or WeasyPrintRenderer()
-        self.template_environment = template_environment or self._build_template_environment()
+        self.template_environment = (
+            template_environment or self._build_template_environment()
+        )
 
     def export_latest_pdf(self, domain: str) -> tuple[str, bytes]:
         result = self.history_service.get_latest_result_for_domain(domain)

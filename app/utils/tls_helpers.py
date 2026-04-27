@@ -15,7 +15,9 @@ class TLSProbeData:
     hostname_match: bool | None = None
 
 
-def format_name(name_entries: tuple[tuple[tuple[str, str], ...], ...] | list | None) -> str | None:
+def format_name(
+    name_entries: tuple[tuple[tuple[str, str], ...], ...] | list | None,
+) -> str | None:
     if not name_entries:
         return None
 
@@ -38,9 +40,7 @@ def extract_san(certificate: dict[str, Any] | None) -> list[str]:
     if not certificate:
         return []
     return [
-        value
-        for key, value in certificate.get("subjectAltName", [])
-        if key == "DNS"
+        value for key, value in certificate.get("subjectAltName", []) if key == "DNS"
     ]
 
 
@@ -61,7 +61,9 @@ def calculate_days_to_expire(not_after: datetime | None) -> int | None:
     return math.floor(delta.total_seconds() / 86400)
 
 
-def expiry_status_for_days(days_to_expire: int | None, *, warning_window_days: int) -> str:
+def expiry_status_for_days(
+    days_to_expire: int | None, *, warning_window_days: int
+) -> str:
     if days_to_expire is None:
         return "desconhecido"
     if days_to_expire < 0:

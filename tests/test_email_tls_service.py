@@ -27,7 +27,9 @@ def test_email_tls_service_reports_starttls_and_certificate():
             }
         }[host]
 
-    service = EmailTLSService(probe_func=lambda host, port: service_result_from_dict(probe(host, port)))
+    service = EmailTLSService(
+        probe_func=lambda host, port: service_result_from_dict(probe(host, port))
+    )
 
     result = service.analyze([MXRecordValue(preference=10, exchange="mx1.example.com")])
 

@@ -11,7 +11,9 @@ from app.services.asset_discovery_service import AssetDiscoveryService
 from app.services.auth_service import AuthenticationService
 
 router = APIRouter(include_in_schema=False)
-templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
+templates = configure_template_filters(
+    Jinja2Templates(directory=str(settings.templates_dir))
+)
 auth_service = AuthenticationService()
 discovery_service = AssetDiscoveryService()
 
@@ -20,7 +22,9 @@ discovery_service = AssetDiscoveryService()
 def discovery_dashboard(request: Request) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return RedirectResponse(url="/auth/login?next=/discovery", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/auth/login?next=/discovery", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     runs = discovery_service.list_runs(user_id=current_user.id)
     return templates.TemplateResponse(
@@ -43,7 +47,9 @@ def create_discovery_run(
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return RedirectResponse(url="/auth/login?next=/discovery", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/auth/login?next=/discovery", status_code=status.HTTP_303_SEE_OTHER
+        )
 
     try:
         detail = discovery_service.create_run(user_id=current_user.id, domain=domain)
@@ -62,17 +68,24 @@ def create_discovery_run(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    return RedirectResponse(url=f"/discovery/runs/{detail.run.id}", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=f"/discovery/runs/{detail.run.id}", status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 @router.get("/discovery/runs/{run_id}", response_class=HTMLResponse)
 def discovery_run_detail(request: Request, run_id: int) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
     if current_user is None:
-        return RedirectResponse(url=f"/auth/login?next=/discovery/runs/{run_id}", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url=f"/auth/login?next=/discovery/runs/{run_id}",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
 
     try:
-        detail = discovery_service.get_run_detail(user_id=current_user.id, run_id=run_id)
+        detail = discovery_service.get_run_detail(
+            user_id=current_user.id, run_id=run_id
+        )
     except AuthorizationError:
         return RedirectResponse(url="/discovery", status_code=status.HTTP_303_SEE_OTHER)
     except DomainSecurityError as exc:

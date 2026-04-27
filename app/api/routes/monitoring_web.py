@@ -13,7 +13,9 @@ from app.services.auth_service import AuthenticationService
 from app.services.monitoring_service import MonitoringService
 
 router = APIRouter(include_in_schema=False)
-templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
+templates = configure_template_filters(
+    Jinja2Templates(directory=str(settings.templates_dir))
+)
 auth_service = AuthenticationService()
 monitoring_service = MonitoringService()
 api_token_service = ApiTokenService()
@@ -32,7 +34,8 @@ def monitoring_dashboard(request: Request) -> HTMLResponse:
 def create_monitored_domain(
     request: Request,
     domain: Annotated[str, Form(max_length=320)],
-    monitoring_frequency: Annotated[str, Form(max_length=16)],
+    check_interval_minutes: Annotated[int | None, Form()] = None,
+    monitoring_frequency: Annotated[str | None, Form(max_length=16)] = None,
     input_label: Annotated[str | None, Form(max_length=255)] = None,
 ) -> HTMLResponse:
     current_user = auth_service.get_user_session(request)
@@ -44,9 +47,12 @@ def create_monitored_domain(
             user_id=current_user.id,
             domain=domain,
             monitoring_frequency=monitoring_frequency,
+            check_interval_minutes=check_interval_minutes,
             input_label=input_label,
         )
-        return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
     except DomainSecurityError as exc:
         return _render_dashboard(
             request,
@@ -68,7 +74,9 @@ def monitored_domain_detail(request: Request, monitored_domain_id: int) -> HTMLR
             monitored_domain_id=monitored_domain_id,
         )
     except AuthorizationError:
-        return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
     except DomainSecurityError as exc:
         return _render_dashboard(
             request,
@@ -142,7 +150,9 @@ def create_api_token(
         return _redirect_to_login("/monitoring")
 
     try:
-        created = api_token_service.create_token(user_id=current_user.id, name=token_name)
+        created = api_token_service.create_token(
+            user_id=current_user.id, name=token_name
+        )
     except DomainSecurityError as exc:
         return _render_dashboard(
             request,
@@ -169,7 +179,9 @@ def deactivate_api_token(request: Request, token_id: int):
 
 
 def _redirect_to_login(path: str) -> RedirectResponse:
-    return RedirectResponse(url=f"/auth/login?next={quote(path)}", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(
+        url=f"/auth/login?next={quote(path)}", status_code=status.HTTP_303_SEE_OTHER
+    )
 
 
 def _render_dashboard(
@@ -235,7 +247,9 @@ def _handle_status_change(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    redirect_target = "/monitoring" if action == "delete" else (next_path or "/monitoring")
+    redirect_target = (
+        "/monitoring" if action == "delete" else (next_path or "/monitoring")
+    )
     return RedirectResponse(url=redirect_target, status_code=status.HTTP_303_SEE_OTHER)
 
 

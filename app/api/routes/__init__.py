@@ -7,6 +7,7 @@ from app.api.routes.discovery import router as discovery_router
 from app.api.routes.external_monitoring import router as external_monitoring_router
 from app.api.routes.health import router as health_router
 from app.api.routes.history import router as history_router
+from app.api.routes.internal_monitoring import router as internal_monitoring_router
 from app.api.routes.monitoring_plus_web import router as monitoring_plus_web_router
 from app.api.routes.monitoring_web import router as monitoring_web_router
 from app.api.routes.report_web import router as report_web_router
@@ -24,6 +25,7 @@ api_router.include_router(wordpress_analysis_router)
 external_api_router = APIRouter()
 external_api_router.include_router(external_monitoring_router)
 external_api_router.include_router(traffic_ingest_router)
+external_api_router.include_router(internal_monitoring_router)
 
 web_router = APIRouter()
 web_router.include_router(public_web_router)

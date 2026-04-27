@@ -17,17 +17,24 @@ from app.schemas.analysis import AnalysisResponse
 class PDFReportPresenter:
     """Builds a print-oriented view model from the normalized analysis result."""
 
-    def present(self, result: AnalysisResponse, *, exported_at: datetime | None = None) -> dict[str, Any]:
+    def present(
+        self, result: AnalysisResponse, *, exported_at: datetime | None = None
+    ) -> dict[str, Any]:
         rendered_at = exported_at or datetime.now(tz=UTC)
         return {
             "executive": self._build_executive(result, exported_at=rendered_at),
             "findings": [self._present_finding(item) for item in result.findings[:8]],
-            "recommendations": [self._present_recommendation(item) for item in result.recommendations[:8]],
+            "recommendations": [
+                self._present_recommendation(item)
+                for item in result.recommendations[:8]
+            ],
             "sections": self._build_sections(result),
             "notes": list(result.notes),
         }
 
-    def _build_executive(self, result: AnalysisResponse, *, exported_at: datetime) -> dict[str, Any]:
+    def _build_executive(
+        self, result: AnalysisResponse, *, exported_at: datetime
+    ) -> dict[str, Any]:
         return {
             "domain": result.normalized.analysis_domain,
             "target_type": humanize_token(result.normalized.target_type),
@@ -41,8 +48,14 @@ class PDFReportPresenter:
                 {"label": "MX", "value": f"{result.score_breakdown.mx_score}/100"},
                 {"label": "SPF", "value": f"{result.score_breakdown.spf_score}/100"},
                 {"label": "DKIM", "value": f"{result.score_breakdown.dkim_score}/100"},
-                {"label": "DMARC", "value": f"{result.score_breakdown.dmarc_score}/100"},
-                {"label": "Consistencia", "value": f"{result.score_breakdown.consistency_score}/100"},
+                {
+                    "label": "DMARC",
+                    "value": f"{result.score_breakdown.dmarc_score}/100",
+                },
+                {
+                    "label": "Consistencia",
+                    "value": f"{result.score_breakdown.consistency_score}/100",
+                },
             ],
             "fact_groups": [
                 self._build_executive_registration_group(result),
@@ -73,22 +86,42 @@ class PDFReportPresenter:
                 [
                     self._item("MX", result.checks.mx.message),
                     self._item("SPF", result.checks.spf.message),
-                    self._item("Postura SPF", spf_posture_label(result.checks.spf.posture)),
-                    self._item("Lookups SPF", result.checks.spf.lookup_count, kind="confirmed"),
-                    self._item("Void lookups SPF", result.checks.spf.void_lookup_count, kind="confirmed"),
+                    self._item(
+                        "Postura SPF", spf_posture_label(result.checks.spf.posture)
+                    ),
+                    self._item(
+                        "Lookups SPF", result.checks.spf.lookup_count, kind="confirmed"
+                    ),
+                    self._item(
+                        "Void lookups SPF",
+                        result.checks.spf.void_lookup_count,
+                        kind="confirmed",
+                    ),
                     self._item("Status DKIM", result.checks.dkim.message),
                     self._item("DMARC", result.checks.dmarc.message),
-                    self._item("Forca DMARC", dmarc_strength_label(result.checks.dmarc.policy_strength)),
+                    self._item(
+                        "Forca DMARC",
+                        dmarc_strength_label(result.checks.dmarc.policy_strength),
+                    ),
                     self._item("Politica DMARC", result.checks.dmarc.policy),
                 ]
             ),
             "lists": self._compact(
                 [
-                    self._list("Registros MX", [f"{item.preference} {item.exchange}" for item in result.checks.mx.records]),
+                    self._list(
+                        "Registros MX",
+                        [
+                            f"{item.preference} {item.exchange}"
+                            for item in result.checks.mx.records
+                        ],
+                    ),
                     self._list("Registros SPF", result.checks.spf.records),
                     self._list("Cadeia de lookups SPF", result.checks.spf.lookup_chain),
                     self._list("Riscos SPF", result.checks.spf.risks),
-                    self._list("Seletores DKIM observados", result.checks.dkim.selectors_with_records),
+                    self._list(
+                        "Seletores DKIM observados",
+                        result.checks.dkim.selectors_with_records,
+                    ),
                     self._list("Registros DMARC", result.checks.dmarc.records),
                     self._list("Destinos de relatorio DMARC", report_destinations),
                     self._list("Riscos DMARC", result.checks.dmarc.risks),
@@ -118,10 +151,17 @@ class PDFReportPresenter:
             "items": self._compact(
                 [
                     self._item("TLS do website", result.website_tls.message),
-                    self._item("Certificado do website valido", yes_no(result.website_tls.certificate_valid)),
+                    self._item(
+                        "Certificado do website valido",
+                        yes_no(result.website_tls.certificate_valid),
+                    ),
                     self._item("Versao TLS do website", result.website_tls.tls_version),
                     self._item("Issuer do website", result.website_tls.issuer),
-                    self._item("Provider guess do website", result.website_tls.provider_guess, kind="inference"),
+                    self._item(
+                        "Provider guess do website",
+                        result.website_tls.provider_guess,
+                        kind="inference",
+                    ),
                     self._item("TLS de e-mail", result.email_tls.message),
                 ]
             ),
@@ -131,7 +171,9 @@ class PDFReportPresenter:
                     self._list("MX com TLS observado", mx_tls_lines),
                 ]
             ),
-            "note": result.email_tls.note if result.email_tls.has_email_tls_data else None,
+            "note": result.email_tls.note
+            if result.email_tls.has_email_tls_data
+            else None,
         }
 
     def _build_email_policy_section(self, result: AnalysisResponse) -> dict[str, Any]:
@@ -147,9 +189,16 @@ class PDFReportPresenter:
                     self._item("MTA-STS", mta_sts.message),
                     self._item("Modo MTA-STS", mta_sts.mode),
                     self._item("SMTP TLS Reporting", tls_rpt.message),
-                    self._item("Destinos TLS-RPT", ", ".join(tls_rpt.rua) if tls_rpt.rua else None),
+                    self._item(
+                        "Destinos TLS-RPT",
+                        ", ".join(tls_rpt.rua) if tls_rpt.rua else None,
+                    ),
                     self._item("BIMI", bimi.message),
-                    self._item("BIMI readiness", humanize_token(bimi.readiness), kind="inference"),
+                    self._item(
+                        "BIMI readiness",
+                        humanize_token(bimi.readiness),
+                        kind="inference",
+                    ),
                     self._item("DNSSEC", dnssec.message),
                 ]
             ),
@@ -165,12 +214,21 @@ class PDFReportPresenter:
                 ]
             ),
             "note": self._join_notes(
-                [mta_sts.fetch_error, mta_sts.lookup_error, tls_rpt.lookup_error, bimi.dmarc_dependency, bimi.lookup_error]
+                [
+                    mta_sts.fetch_error,
+                    mta_sts.lookup_error,
+                    tls_rpt.lookup_error,
+                    bimi.dmarc_dependency,
+                    bimi.lookup_error,
+                ]
             ),
         }
 
     def _build_registration_section(self, result: AnalysisResponse) -> dict[str, Any]:
-        if not self._registration_available(result.domain_registration) and not result.domain_registration.error:
+        if (
+            not self._registration_available(result.domain_registration)
+            and not result.domain_registration.error
+        ):
             note = "Dados de registro podem estar indisponiveis ou parciais dependendo do TLD e do registrador."
         else:
             note = None
@@ -183,9 +241,21 @@ class PDFReportPresenter:
                     self._item("Mensagem", result.domain_registration.message),
                     self._item("Fonte", result.domain_registration.source),
                     self._item("Registrar", result.domain_registration.registrar),
-                    self._item("Criado em", format_datetime(result.domain_registration.created_at) if result.domain_registration.created_at else None),
-                    self._item("Expira em", format_datetime(result.domain_registration.expires_at) if result.domain_registration.expires_at else None),
-                    self._item("Dias para expirar", result.domain_registration.days_to_expire),
+                    self._item(
+                        "Criado em",
+                        format_datetime(result.domain_registration.created_at)
+                        if result.domain_registration.created_at
+                        else None,
+                    ),
+                    self._item(
+                        "Expira em",
+                        format_datetime(result.domain_registration.expires_at)
+                        if result.domain_registration.expires_at
+                        else None,
+                    ),
+                    self._item(
+                        "Dias para expirar", result.domain_registration.days_to_expire
+                    ),
                 ]
             ),
             "lists": self._compact(
@@ -216,7 +286,11 @@ class PDFReportPresenter:
                     self._item("IP publico", yes_no(result.ip_intelligence.is_public)),
                     self._item("Reverse DNS", result.ip_intelligence.reverse_dns),
                     self._item("ASN", result.ip_intelligence.asn),
-                    self._item("Nome do AS", result.ip_intelligence.asn_name or result.ip_intelligence.asn_org),
+                    self._item(
+                        "Nome do AS",
+                        result.ip_intelligence.asn_name
+                        or result.ip_intelligence.asn_org,
+                    ),
                     self._item("ISP", result.ip_intelligence.isp),
                     self._item("Organizacao", result.ip_intelligence.organization),
                     self._item(
@@ -228,40 +302,79 @@ class PDFReportPresenter:
                         ),
                         kind="approximate",
                     ),
-                    self._item("Cidade", result.ip_intelligence.city, kind="approximate"),
-                    self._item("Regiao", result.ip_intelligence.region, kind="approximate"),
-                    self._item("Timezone", result.ip_intelligence.timezone, kind="approximate"),
-                    self._item("Tipo de uso", result.ip_intelligence.usage_type, kind="inference"),
-                    self._item("Provider guess", result.ip_intelligence.provider_guess, kind="inference"),
-                    self._item("Proxy ou hosting guess", yes_no(result.ip_intelligence.is_proxy_or_hosting_guess), kind="inference"),
+                    self._item(
+                        "Cidade", result.ip_intelligence.city, kind="approximate"
+                    ),
+                    self._item(
+                        "Regiao", result.ip_intelligence.region, kind="approximate"
+                    ),
+                    self._item(
+                        "Timezone", result.ip_intelligence.timezone, kind="approximate"
+                    ),
+                    self._item(
+                        "Tipo de uso",
+                        result.ip_intelligence.usage_type,
+                        kind="inference",
+                    ),
+                    self._item(
+                        "Provider guess",
+                        result.ip_intelligence.provider_guess,
+                        kind="inference",
+                    ),
+                    self._item(
+                        "Proxy ou hosting guess",
+                        yes_no(result.ip_intelligence.is_proxy_or_hosting_guess),
+                        kind="inference",
+                    ),
                     self._item("Fonte", result.ip_intelligence.source),
                 ]
             ),
             "lists": self._compact(
                 [
                     self._list("IPs resolvidos", resolved_ips),
-                    self._list("Flags de anonimidade", result.ip_intelligence.anonymous_ip_flags),
-                    self._list("Tags de reputacao", result.ip_intelligence.reputation_tags),
+                    self._list(
+                        "Flags de anonimidade",
+                        result.ip_intelligence.anonymous_ip_flags,
+                    ),
+                    self._list(
+                        "Tags de reputacao", result.ip_intelligence.reputation_tags
+                    ),
                 ]
             ),
             "note": self._join_notes(
                 list(result.ip_intelligence.notes)
-                + ([result.ip_intelligence.confidence_note] if result.ip_intelligence.confidence_note else [])
+                + (
+                    [result.ip_intelligence.confidence_note]
+                    if result.ip_intelligence.confidence_note
+                    else []
+                )
             ),
         }
 
-    def _build_executive_registration_group(self, result: AnalysisResponse) -> dict[str, Any]:
+    def _build_executive_registration_group(
+        self, result: AnalysisResponse
+    ) -> dict[str, Any]:
         registration = result.domain_registration
         return {
             "title": "WHOIS / Registro do dominio",
             "items": self._compact(
                 [
                     self._item("Registrar", registration.registrar or "Indisponivel"),
-                    self._item("Criado em", self._format_date_only(registration.created_at) or "Indisponivel"),
-                    self._item("Expira em", self._format_date_only(registration.expires_at) or "Indisponivel"),
+                    self._item(
+                        "Criado em",
+                        self._format_date_only(registration.created_at)
+                        or "Indisponivel",
+                    ),
+                    self._item(
+                        "Expira em",
+                        self._format_date_only(registration.expires_at)
+                        or "Indisponivel",
+                    ),
                     self._item(
                         "Status do registro",
-                        ", ".join(registration.status) if registration.status else "Indisponivel",
+                        ", ".join(registration.status)
+                        if registration.status
+                        else "Indisponivel",
                     ),
                 ]
             ),
@@ -282,10 +395,17 @@ class PDFReportPresenter:
                     self._item("IP principal", ip_info.primary_ip or "Indisponivel"),
                     self._item("Versao", ip_info.ip_version or "Indisponivel"),
                     self._item("ASN", ip_info.asn or "Indisponivel"),
-                    self._item("Nome do AS", (ip_info.asn_name or ip_info.asn_org) or "Indisponivel"),
+                    self._item(
+                        "Nome do AS",
+                        (ip_info.asn_name or ip_info.asn_org) or "Indisponivel",
+                    ),
                     self._item(
                         "Pais aproximado",
-                        self._country_display(ip_info.country_name, ip_info.country_code, fallback=ip_info.country)
+                        self._country_display(
+                            ip_info.country_name,
+                            ip_info.country_code,
+                            fallback=ip_info.country,
+                        )
                         or "Indisponivel",
                         kind="approximate",
                     ),
@@ -300,9 +420,14 @@ class PDFReportPresenter:
             "title": "SSL / TLS do website",
             "items": self._compact(
                 [
-                    self._item("SSL presente", yes_no(tls.ssl_active) or "Indisponivel"),
+                    self._item(
+                        "SSL presente", yes_no(tls.ssl_active) or "Indisponivel"
+                    ),
                     self._item("Emissor", tls.issuer or "Indisponivel"),
-                    self._item("Expira em", self._format_date_only(tls.not_after) or "Indisponivel"),
+                    self._item(
+                        "Expira em",
+                        self._format_date_only(tls.not_after) or "Indisponivel",
+                    ),
                     self._item("Versao TLS", tls.tls_version or "Indisponivel"),
                 ]
             ),
@@ -371,7 +496,9 @@ class PDFReportPresenter:
         }
 
     @staticmethod
-    def _item(label: str, value: Any, *, kind: str = "confirmed") -> dict[str, str] | None:
+    def _item(
+        label: str, value: Any, *, kind: str = "confirmed"
+    ) -> dict[str, str] | None:
         if is_blank(value):
             return None
         return {
@@ -413,7 +540,12 @@ class PDFReportPresenter:
         return f"Expira em {days_to_expire} dia(s)."
 
     @staticmethod
-    def _country_display(country_name: str | None, country_code: str | None, *, fallback: str | None = None) -> str | None:
+    def _country_display(
+        country_name: str | None,
+        country_code: str | None,
+        *,
+        fallback: str | None = None,
+    ) -> str | None:
         if country_name and country_code:
             return f"{country_name} ({country_code})"
         if country_name:
@@ -424,7 +556,11 @@ class PDFReportPresenter:
 
     @staticmethod
     def _registration_available(registration) -> bool:
-        return bool(registration.available or registration.whois_available or registration.rdap_available)
+        return bool(
+            registration.available
+            or registration.whois_available
+            or registration.rdap_available
+        )
 
     @staticmethod
     def _ip_source_note(source: str | None) -> str | None:

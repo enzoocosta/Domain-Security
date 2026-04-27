@@ -18,7 +18,12 @@ from app.schemas.analysis import (
     ScoreBreakdown,
     WebsiteTLSResult,
 )
-from app.schemas.history import AnalysisDiffSummary, DomainHistoryResponse, HistoryItem, SnapshotChangeItem
+from app.schemas.history import (
+    AnalysisDiffSummary,
+    DomainHistoryResponse,
+    HistoryItem,
+    SnapshotChangeItem,
+)
 from app.schemas.health import HealthResponse
 from app.schemas.monitoring import (
     AlertEventSummary,

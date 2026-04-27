@@ -85,9 +85,15 @@ class WebsiteTLSService:
                 error=f"Falha ao negociar HTTPS: {exc}",
             )
 
-    def _perform_tls_handshake(self, host: str, port: int, *, verify: bool) -> TLSProbeData:
-        context = ssl.create_default_context() if verify else ssl._create_unverified_context()
-        with create_connection((host, port), timeout=self.timeout_seconds) as tcp_socket:
+    def _perform_tls_handshake(
+        self, host: str, port: int, *, verify: bool
+    ) -> TLSProbeData:
+        context = (
+            ssl.create_default_context() if verify else ssl._create_unverified_context()
+        )
+        with create_connection(
+            (host, port), timeout=self.timeout_seconds
+        ) as tcp_socket:
             with context.wrap_socket(tcp_socket, server_hostname=host) as tls_socket:
                 certificate = tls_socket.getpeercert()
                 return TLSProbeData(
@@ -98,13 +104,19 @@ class WebsiteTLSService:
                 )
 
     @staticmethod
-    def _build_message(certificate_valid: bool | None, days_to_expire: int | None) -> str:
+    def _build_message(
+        certificate_valid: bool | None, days_to_expire: int | None
+    ) -> str:
         if certificate_valid is False:
             return "HTTPS esta ativo, mas o certificado nao foi validado com sucesso."
         if days_to_expire is None:
-            return "HTTPS esta ativo, mas a validade do certificado nao foi determinada."
+            return (
+                "HTTPS esta ativo, mas a validade do certificado nao foi determinada."
+            )
         if days_to_expire < 0:
             return "HTTPS esta ativo, mas o certificado do site esta expirado."
         if days_to_expire <= 30:
-            return "HTTPS esta ativo, mas o certificado do site esta proximo da expiracao."
+            return (
+                "HTTPS esta ativo, mas o certificado do site esta proximo da expiracao."
+            )
         return "HTTPS esta ativo com certificado valido."

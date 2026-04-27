@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.schemas.monitoring import MonitoringDomainDetailResponse
 from app.utils.input_parser import normalize_target
 
 
@@ -13,7 +14,9 @@ class MonitoringPlusActivationInput(BaseModel):
 
     domain: str = Field(min_length=3, max_length=320)
     input_label: str | None = Field(default=None, max_length=255)
-    monitoring_frequency: str = Field(default="daily", max_length=16)
+    monitoring_frequency: str | None = Field(default=None, max_length=16)
+    check_interval_minutes: int | None = Field(default=None, ge=60, le=43200)
+    alert_contacts: list[str] = Field(default_factory=list)
 
     @field_validator("domain")
     @classmethod
@@ -22,11 +25,28 @@ class MonitoringPlusActivationInput(BaseModel):
 
     @field_validator("monitoring_frequency")
     @classmethod
-    def _validate_frequency(cls, value: str) -> str:
+    def _validate_frequency(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
         cleaned = value.strip().lower()
-        if cleaned not in {"daily", "weekly", "monthly"}:
-            raise ValueError("Frequencia invalida. Use daily, weekly ou monthly.")
+        if cleaned not in {"1h", "6h", "12h", "daily", "weekly", "monthly"}:
+            raise ValueError(
+                "Frequencia invalida. Use 1h, 6h, 12h, daily, weekly ou monthly."
+            )
         return cleaned
+
+    @field_validator("alert_contacts")
+    @classmethod
+    def _normalize_contacts(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            cleaned = item.strip().lower()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            normalized.append(cleaned)
+        return normalized
 
 
 class PremiumSubscriptionSummary(BaseModel):
@@ -116,21 +136,29 @@ class MonitoringPlusDomainDetail(BaseModel):
     monitored_domain_id: int
     normalized_domain: str
     input_label: str | None
+    plan: str
+    check_interval_minutes: int
+    alert_contacts: list[str]
     subscription: PremiumSubscriptionSummary | None
     stats: MonitoringPlusDomainStats
     recent_incidents: list[TrafficIncidentSummary]
     ingest_tokens: list[PremiumIngestTokenSummary]
+    monitoring: MonitoringDomainDetailResponse
 
 
 class MonitoringPlusDomainCard(BaseModel):
     monitored_domain_id: int
     normalized_domain: str
     input_label: str | None
+    plan: str
+    check_interval_minutes: int
     subscription_status: str | None
     is_entitled: bool
     days_left_in_trial: int | None
     open_incidents: int
     last_incident_at: datetime | None
+    latest_score: int | None = None
+    scheduler_warning: str | None = None
 
 
 class MonitoringPlusDashboard(BaseModel):

@@ -61,4 +61,3 @@ def _normalize_domain(value: str) -> str:
             raise InputValidationError("Domínio inválido.")
 
     return ascii_domain
-

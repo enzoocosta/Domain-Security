@@ -117,7 +117,9 @@ def _ip_intelligence_ok() -> IPIntelligenceResult:
         usage_type="hosting",
         confidence="media",
         message="O IP publico principal observado para o website foi 93.184.216.34 com enriquecimento externo disponivel.",
-        notes=["Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."],
+        notes=[
+            "Dados geograficos de IP sao aproximados e podem representar borda, CDN ou provedor intermediario."
+        ],
         source="maxmind:city+asn+isp",
     )
 
@@ -224,7 +226,9 @@ def test_analysis_service_marks_transport_and_registration_risks():
         dns_service=StubDNSService(
             txt_records={
                 "example.com": ["v=spf1 include:_spf.example.net +all"],
-                "_dmarc.example.com": ["v=DMARC1; p=none; rua=mailto:reports@example.com"],
+                "_dmarc.example.com": [
+                    "v=DMARC1; p=none; rua=mailto:reports@example.com"
+                ],
             },
         ),
         website_tls_service=StubWebsiteTLSService(website_tls),
@@ -278,7 +282,9 @@ def test_analysis_service_uses_short_lived_cache():
         mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
         txt_records={
             "example.com": ["v=spf1 include:_spf.example.net -all"],
-            "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:reports@example.com"],
+            "_dmarc.example.com": [
+                "v=DMARC1; p=reject; rua=mailto:reports@example.com"
+            ],
             "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIIB"],
         },
     )
@@ -320,7 +326,9 @@ class SlowDNSService(StubDNSService):
         sleep(self.delay_seconds)
         return super().get_mx_records(domain)
 
-    def get_txt_records(self, name: str, *, missing_on_nxdomain: bool = False) -> list[str]:
+    def get_txt_records(
+        self, name: str, *, missing_on_nxdomain: bool = False
+    ) -> list[str]:
         sleep(self.delay_seconds)
         return super().get_txt_records(name, missing_on_nxdomain=missing_on_nxdomain)
 
@@ -346,7 +354,9 @@ class SlowEmailTLSService(StubEmailTLSService):
 
 
 class SlowDomainRegistrationService(StubDomainRegistrationService):
-    def __init__(self, result: DomainRegistrationResult, delay_seconds: float = 0.07) -> None:
+    def __init__(
+        self, result: DomainRegistrationResult, delay_seconds: float = 0.07
+    ) -> None:
         super().__init__(result)
         self.delay_seconds = delay_seconds
 
@@ -356,7 +366,9 @@ class SlowDomainRegistrationService(StubDomainRegistrationService):
 
 
 class SlowIPIntelligenceService(StubIPIntelligenceService):
-    def __init__(self, result: IPIntelligenceResult, delay_seconds: float = 0.07) -> None:
+    def __init__(
+        self, result: IPIntelligenceResult, delay_seconds: float = 0.07
+    ) -> None:
         super().__init__(result)
         self.delay_seconds = delay_seconds
 
@@ -371,7 +383,9 @@ def test_analysis_service_parallelizes_independent_stages():
             mx_records=[MXRecordValue(preference=10, exchange="mail.example.com")],
             txt_records={
                 "example.com": ["v=spf1 include:_spf.example.net -all"],
-                "_dmarc.example.com": ["v=DMARC1; p=reject; rua=mailto:reports@example.com"],
+                "_dmarc.example.com": [
+                    "v=DMARC1; p=reject; rua=mailto:reports@example.com"
+                ],
                 "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIIB"],
             },
         ),

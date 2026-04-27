@@ -129,7 +129,11 @@ class ScoringService:
         return 10
 
     def _score_consistency(self, checks: AnalysisChecks) -> int:
-        if checks.mx.lookup_error or checks.spf.lookup_error or checks.dmarc.lookup_error:
+        if (
+            checks.mx.lookup_error
+            or checks.spf.lookup_error
+            or checks.dmarc.lookup_error
+        ):
             return 60
         score = 100
 

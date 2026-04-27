@@ -9,7 +9,9 @@ router = APIRouter(tags=["analysis"])
 service = DomainAnalysisService()
 
 
-@router.post("/analyze", response_model=AnalysisResponse, summary="Analisar um dominio ou e-mail")
+@router.post(
+    "/analyze", response_model=AnalysisResponse, summary="Analisar um dominio ou e-mail"
+)
 def analyze(payload: AnalysisRequest) -> AnalysisResponse:
     try:
         return service.analyze_target(payload.target)

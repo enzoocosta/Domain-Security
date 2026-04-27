@@ -10,14 +10,18 @@ from app.presenters import configure_template_filters
 from app.services.auth_service import AuthenticationService
 
 router = APIRouter(include_in_schema=False)
-templates = configure_template_filters(Jinja2Templates(directory=str(settings.templates_dir)))
+templates = configure_template_filters(
+    Jinja2Templates(directory=str(settings.templates_dir))
+)
 auth_service = AuthenticationService()
 
 
 @router.get("/auth/register", response_class=HTMLResponse)
 def register_page(request: Request) -> HTMLResponse:
     if auth_service.get_user_session(request) is not None:
-        return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
     return templates.TemplateResponse(
         request=request,
         name="pages/auth_register.html",
@@ -40,7 +44,9 @@ def register_user(
 ) -> HTMLResponse:
     try:
         user = auth_service.register_user(email, password)
-        response = RedirectResponse(url=next_path or "/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(
+            url=next_path or "/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
         auth_service.apply_login(response, user)
         return response
     except DomainSecurityError as exc:
@@ -61,7 +67,9 @@ def register_user(
 @router.get("/auth/login", response_class=HTMLResponse)
 def login_page(request: Request) -> HTMLResponse:
     if auth_service.get_user_session(request) is not None:
-        return RedirectResponse(url="/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        return RedirectResponse(
+            url="/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
     return templates.TemplateResponse(
         request=request,
         name="pages/auth_login.html",
@@ -84,7 +92,9 @@ def login_user(
 ) -> HTMLResponse:
     try:
         user = auth_service.authenticate(email, password)
-        response = RedirectResponse(url=next_path or "/monitoring", status_code=status.HTTP_303_SEE_OTHER)
+        response = RedirectResponse(
+            url=next_path or "/monitoring", status_code=status.HTTP_303_SEE_OTHER
+        )
         auth_service.apply_login(response, user)
         return response
     except DomainSecurityError as exc:

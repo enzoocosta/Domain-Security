@@ -11,10 +11,18 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import AuthenticationError, AuthorizationError, InputValidationError
+from app.core.exceptions import (
+    AuthenticationError,
+    AuthorizationError,
+    InputValidationError,
+)
 from app.db.models import ApiToken, User
 from app.db.session import SessionLocal
-from app.schemas.api_tokens import ApiTokenCreateInput, ApiTokenCreateResult, ApiTokenSummary
+from app.schemas.api_tokens import (
+    ApiTokenCreateInput,
+    ApiTokenCreateResult,
+    ApiTokenSummary,
+)
 
 
 @dataclass(frozen=True)
@@ -68,7 +76,9 @@ class ApiTokenService:
             ).all()
             return [self._to_summary(item) for item in tokens]
 
-    def set_token_active_state(self, *, user_id: int, token_id: int, is_active: bool) -> ApiTokenSummary:
+    def set_token_active_state(
+        self, *, user_id: int, token_id: int, is_active: bool
+    ) -> ApiTokenSummary:
         with self.session_factory() as db:
             self._require_user(db, user_id)
             token = db.get(ApiToken, token_id)
@@ -95,7 +105,9 @@ class ApiTokenService:
                     User.is_active.is_(True),
                 )
             )
-            if token is None or not hmac.compare_digest(token.token_hash, self._hash_token(raw_token)):
+            if token is None or not hmac.compare_digest(
+                token.token_hash, self._hash_token(raw_token)
+            ):
                 raise AuthenticationError("Token invalido.")
 
             token.last_used_at = self._utcnow()

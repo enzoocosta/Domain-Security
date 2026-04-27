@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 from app.db.models import AnalysisSnapshot, TrackedDomain
 from app.db.session import SessionLocal
 from app.schemas.analysis import AnalysisResponse
-from app.schemas.history import AnalysisDiffSummary, DomainHistoryResponse, HistoryItem, SnapshotChangeItem
+from app.schemas.history import (
+    AnalysisDiffSummary,
+    DomainHistoryResponse,
+    HistoryItem,
+    SnapshotChangeItem,
+)
 from app.utils.input_parser import normalize_target
 
 
@@ -21,9 +26,13 @@ class AnalysisHistoryService:
     def __init__(self, session_factory: Callable[[], Session] | None = None) -> None:
         self.session_factory = session_factory or SessionLocal
 
-    def record_analysis(self, result: AnalysisResponse, *, input_target: str) -> AnalysisResponse:
+    def record_analysis(
+        self, result: AnalysisResponse, *, input_target: str
+    ) -> AnalysisResponse:
         with self.session_factory() as db:
-            tracked_domain = self.get_or_create_tracked_domain(db, result.normalized.analysis_domain)
+            tracked_domain = self.get_or_create_tracked_domain(
+                db, result.normalized.analysis_domain
+            )
             previous_snapshot = self.get_latest_snapshot(db, tracked_domain.id)
             diff = self.compare_with_previous(result, previous_snapshot)
             final_result = result.model_copy(update={"changes": diff})
@@ -46,10 +55,14 @@ class AnalysisHistoryService:
             stmt = (
                 select(AnalysisSnapshot)
                 .where(AnalysisSnapshot.tracked_domain_id == tracked_domain.id)
-                .order_by(AnalysisSnapshot.created_at.desc(), AnalysisSnapshot.id.desc())
+                .order_by(
+                    AnalysisSnapshot.created_at.desc(), AnalysisSnapshot.id.desc()
+                )
                 .limit(limit)
             )
-            items = [self._to_history_item(snapshot) for snapshot in db.scalars(stmt).all()]
+            items = [
+                self._to_history_item(snapshot) for snapshot in db.scalars(stmt).all()
+            ]
             return DomainHistoryResponse(domain=normalized_domain, items=items)
 
     def get_latest_snapshot_for_domain(self, domain: str) -> AnalysisSnapshot | None:
@@ -66,7 +79,9 @@ class AnalysisHistoryService:
             return None
         return AnalysisResponse.model_validate(snapshot.snapshot_data)
 
-    def get_or_create_tracked_domain(self, db: Session, normalized_domain: str) -> TrackedDomain:
+    def get_or_create_tracked_domain(
+        self, db: Session, normalized_domain: str
+    ) -> TrackedDomain:
         tracked_domain = self._get_tracked_domain(db, normalized_domain)
         current_time = utcnow()
         if tracked_domain is not None:
@@ -109,7 +124,9 @@ class AnalysisHistoryService:
         db.flush()
         return snapshot
 
-    def get_latest_snapshot(self, db: Session, tracked_domain_id: int) -> AnalysisSnapshot | None:
+    def get_latest_snapshot(
+        self, db: Session, tracked_domain_id: int
+    ) -> AnalysisSnapshot | None:
         stmt = (
             select(AnalysisSnapshot)
             .where(AnalysisSnapshot.tracked_domain_id == tracked_domain_id)
@@ -135,7 +152,9 @@ class AnalysisHistoryService:
         current_data = current_result.model_dump(mode="json")
 
         changed_checks = self._build_changed_checks(previous_data, current_data)
-        added_findings, removed_findings = self._diff_findings(previous_data, current_data)
+        added_findings, removed_findings = self._diff_findings(
+            previous_data, current_data
+        )
         previous_score = self._coerce_int(previous_data.get("score"))
         current_score = current_result.score
         previous_severity = previous_data.get("severity")
@@ -143,11 +162,19 @@ class AnalysisHistoryService:
 
         return AnalysisDiffSummary(
             has_previous_snapshot=True,
-            message=self._build_diff_message(changed_checks, added_findings, removed_findings, previous_score, current_score),
+            message=self._build_diff_message(
+                changed_checks,
+                added_findings,
+                removed_findings,
+                previous_score,
+                current_score,
+            ),
             previous_snapshot_created_at=previous_snapshot.created_at,
             previous_score=previous_score,
             current_score=current_score,
-            score_delta=None if previous_score is None else current_score - previous_score,
+            score_delta=None
+            if previous_score is None
+            else current_score - previous_score,
             previous_severity=previous_severity,
             current_severity=current_severity,
             severity_changed=previous_severity != current_severity,
@@ -156,8 +183,12 @@ class AnalysisHistoryService:
             removed_findings=removed_findings,
         )
 
-    def _get_tracked_domain(self, db: Session, normalized_domain: str) -> TrackedDomain | None:
-        stmt = select(TrackedDomain).where(TrackedDomain.normalized_domain == normalized_domain)
+    def _get_tracked_domain(
+        self, db: Session, normalized_domain: str
+    ) -> TrackedDomain | None:
+        stmt = select(TrackedDomain).where(
+            TrackedDomain.normalized_domain == normalized_domain
+        )
         return db.scalar(stmt)
 
     def _to_history_item(self, snapshot: AnalysisSnapshot) -> HistoryItem:
@@ -171,7 +202,9 @@ class AnalysisHistoryService:
             summary=snapshot.summary,
         )
 
-    def _build_changed_checks(self, previous_data: dict, current_data: dict) -> list[SnapshotChangeItem]:
+    def _build_changed_checks(
+        self, previous_data: dict, current_data: dict
+    ) -> list[SnapshotChangeItem]:
         fields = [
             ("checks.spf.posture", "Postura SPF"),
             ("checks.dkim.status", "Status DKIM"),
@@ -198,9 +231,15 @@ class AnalysisHistoryService:
             )
         return changes
 
-    def _diff_findings(self, previous_data: dict, current_data: dict) -> tuple[list[str], list[str]]:
-        previous_findings = {self._finding_signature(item) for item in previous_data.get("findings", [])}
-        current_findings = {self._finding_signature(item) for item in current_data.get("findings", [])}
+    def _diff_findings(
+        self, previous_data: dict, current_data: dict
+    ) -> tuple[list[str], list[str]]:
+        previous_findings = {
+            self._finding_signature(item) for item in previous_data.get("findings", [])
+        }
+        current_findings = {
+            self._finding_signature(item) for item in current_data.get("findings", [])
+        }
         added = sorted(item for item in current_findings - previous_findings if item)
         removed = sorted(item for item in previous_findings - current_findings if item)
         return added, removed
@@ -245,10 +284,22 @@ class AnalysisHistoryService:
         previous_score: int | None,
         current_score: int,
     ) -> str:
-        if previous_score is None and not changed_checks and not added_findings and not removed_findings:
+        if (
+            previous_score is None
+            and not changed_checks
+            and not added_findings
+            and not removed_findings
+        ):
             return "Nao foi possivel comparar a nova analise com o snapshot anterior."
-        if not changed_checks and not added_findings and not removed_findings and previous_score == current_score:
-            return "Nenhuma mudanca relevante foi detectada desde a ultima analise salva."
+        if (
+            not changed_checks
+            and not added_findings
+            and not removed_findings
+            and previous_score == current_score
+        ):
+            return (
+                "Nenhuma mudanca relevante foi detectada desde a ultima analise salva."
+            )
         if previous_score is None:
             return "Mudancas relevantes foram detectadas desde a ultima analise salva."
 

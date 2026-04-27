@@ -6,7 +6,14 @@ from urllib import error, request
 
 from app.core.config import settings
 from app.core.exceptions import DNSLookupError
-from app.schemas.analysis import BIMIResult, DMARCCheckResult, DNSSECResult, EmailPolicyResult, MTASTSResult, TLSRPTResult
+from app.schemas.analysis import (
+    BIMIResult,
+    DMARCCheckResult,
+    DNSSECResult,
+    EmailPolicyResult,
+    MTASTSResult,
+    TLSRPTResult,
+)
 from app.services.dns_service import DNSLookupService
 
 
@@ -24,11 +31,17 @@ class EmailPolicyService:
         self.policy_fetcher = policy_fetcher or self._default_fetch_policy
         self.timeout_seconds = timeout_seconds or settings.website_tls_timeout_seconds
 
-    def analyze(self, domain: str, *, dmarc_result: DMARCCheckResult) -> EmailPolicyResult:
-        with ThreadPoolExecutor(max_workers=3, thread_name_prefix="dsc-email-policy") as executor:
+    def analyze(
+        self, domain: str, *, dmarc_result: DMARCCheckResult
+    ) -> EmailPolicyResult:
+        with ThreadPoolExecutor(
+            max_workers=3, thread_name_prefix="dsc-email-policy"
+        ) as executor:
             mta_sts_future = executor.submit(self._analyze_mta_sts, domain)
             tls_rpt_future = executor.submit(self._analyze_tls_rpt, domain)
-            bimi_future = executor.submit(self._analyze_bimi, domain, dmarc_result=dmarc_result)
+            bimi_future = executor.submit(
+                self._analyze_bimi, domain, dmarc_result=dmarc_result
+            )
 
             return EmailPolicyResult(
                 mta_sts=mta_sts_future.result(),
@@ -40,7 +53,9 @@ class EmailPolicyService:
     def _analyze_mta_sts(self, domain: str) -> MTASTSResult:
         checked_name = f"_mta-sts.{domain}"
         try:
-            txt_records = self.dns_service.get_txt_records(checked_name, missing_on_nxdomain=True)
+            txt_records = self.dns_service.get_txt_records(
+                checked_name, missing_on_nxdomain=True
+            )
         except DNSLookupError as exc:
             return MTASTSResult(
                 checked_name=checked_name,
@@ -49,14 +64,20 @@ class EmailPolicyService:
                 message="A consulta de MTA-STS nao foi concluida por indisponibilidade temporaria de DNS.",
             )
 
-        records = [item.strip() for item in txt_records if item.strip().lower().startswith("v=stsv1")]
+        records = [
+            item.strip()
+            for item in txt_records
+            if item.strip().lower().startswith("v=stsv1")
+        ]
         if not records:
             return MTASTSResult(
                 checked_name=checked_name,
                 status="ausente",
                 policy_url=f"https://mta-sts.{domain}/.well-known/mta-sts.txt",
                 message="Nenhum registro MTA-STS foi encontrado.",
-                recommendations=["Publique MTA-STS para reforcar a seguranca de transporte de e-mail entre MTAs."],
+                recommendations=[
+                    "Publique MTA-STS para reforcar a seguranca de transporte de e-mail entre MTAs."
+                ],
             )
         if len(records) > 1:
             return MTASTSResult(
@@ -65,7 +86,9 @@ class EmailPolicyService:
                 dns_record=records[0],
                 message="Foram encontrados multiplos registros MTA-STS, o que e inconsistente.",
                 warnings=["Mantenha apenas um registro TXT valido em _mta-sts."],
-                recommendations=["Consolide o MTA-STS em um unico registro TXT valido."],
+                recommendations=[
+                    "Consolide o MTA-STS em um unico registro TXT valido."
+                ],
             )
 
         dns_tags = self._parse_semicolon_tags(records[0], expected_prefix="v=stsv1")
@@ -85,7 +108,9 @@ class EmailPolicyService:
                 fetch_error=str(exc),
                 message="O registro MTA-STS existe, mas a politica HTTPS nao foi obtida com sucesso.",
                 warnings=["Sem politica HTTPS valida, o MTA-STS permanece incompleto."],
-                recommendations=["Publique a politica MTA-STS em HTTPS no caminho padrao .well-known."],
+                recommendations=[
+                    "Publique a politica MTA-STS em HTTPS no caminho padrao .well-known."
+                ],
             )
 
         parsed_policy = self._parse_line_tags(policy_text)
@@ -101,11 +126,17 @@ class EmailPolicyService:
         if max_age is None:
             warnings.append("A politica MTA-STS deveria declarar max_age numerico.")
         if mode in {"testing", "enforce"} and not mx_patterns:
-            warnings.append("Politicas MTA-STS em testing/enforce deveriam listar ao menos um padrao mx.")
+            warnings.append(
+                "Politicas MTA-STS em testing/enforce deveriam listar ao menos um padrao mx."
+            )
         if mode == "testing":
-            recommendations.append("Quando a validacao estiver estavel, avance o MTA-STS de testing para enforce.")
+            recommendations.append(
+                "Quando a validacao estiver estavel, avance o MTA-STS de testing para enforce."
+            )
         elif mode == "none":
-            recommendations.append("Considere evoluir o MTA-STS para testing ou enforce quando houver cobertura suficiente.")
+            recommendations.append(
+                "Considere evoluir o MTA-STS para testing ou enforce quando houver cobertura suficiente."
+            )
 
         status = "presente" if not warnings else "invalido"
         message = (
@@ -130,7 +161,9 @@ class EmailPolicyService:
     def _analyze_tls_rpt(self, domain: str) -> TLSRPTResult:
         checked_name = f"_smtp._tls.{domain}"
         try:
-            txt_records = self.dns_service.get_txt_records(checked_name, missing_on_nxdomain=True)
+            txt_records = self.dns_service.get_txt_records(
+                checked_name, missing_on_nxdomain=True
+            )
         except DNSLookupError as exc:
             return TLSRPTResult(
                 checked_name=checked_name,
@@ -139,13 +172,19 @@ class EmailPolicyService:
                 message="A consulta de SMTP TLS Reporting nao foi concluida por indisponibilidade temporaria de DNS.",
             )
 
-        records = [item.strip() for item in txt_records if item.strip().lower().startswith("v=tlsrptv1")]
+        records = [
+            item.strip()
+            for item in txt_records
+            if item.strip().lower().startswith("v=tlsrptv1")
+        ]
         if not records:
             return TLSRPTResult(
                 checked_name=checked_name,
                 status="ausente",
                 message="Nenhum registro SMTP TLS Reporting foi encontrado.",
-                recommendations=["Publique TLS-RPT para receber visibilidade sobre falhas de transporte TLS em e-mail."],
+                recommendations=[
+                    "Publique TLS-RPT para receber visibilidade sobre falhas de transporte TLS em e-mail."
+                ],
             )
         if len(records) > 1:
             return TLSRPTResult(
@@ -154,15 +193,21 @@ class EmailPolicyService:
                 records=records,
                 message="Foram encontrados multiplos registros TLS-RPT, o que e inconsistente.",
                 warnings=["Mantenha apenas um registro TLS-RPT valido em _smtp._tls."],
-                recommendations=["Consolide o TLS-RPT em um unico registro TXT valido."],
+                recommendations=[
+                    "Consolide o TLS-RPT em um unico registro TXT valido."
+                ],
             )
 
         tags = self._parse_semicolon_tags(records[0], expected_prefix="v=tlsrptv1")
-        rua = [item.strip() for item in (tags.get("rua") or "").split(",") if item.strip()]
+        rua = [
+            item.strip() for item in (tags.get("rua") or "").split(",") if item.strip()
+        ]
         warnings: list[str] = []
         if not rua:
             warnings.append("O TLS-RPT existe, mas nao define destinos rua.")
-        invalid_uris = [item for item in rua if not item.startswith(("mailto:", "https://"))]
+        invalid_uris = [
+            item for item in rua if not item.startswith(("mailto:", "https://"))
+        ]
         if invalid_uris:
             warnings.append("O TLS-RPT deveria usar destinos mailto: ou https://.")
 
@@ -179,16 +224,22 @@ class EmailPolicyService:
             ),
             warnings=warnings,
             recommendations=(
-                ["Confirme que os destinos TLS-RPT realmente recebem relatorios agregados."]
+                [
+                    "Confirme que os destinos TLS-RPT realmente recebem relatorios agregados."
+                ]
                 if rua
                 else ["Adicione ao menos um destino rua valido ao TLS-RPT."]
             ),
         )
 
-    def _analyze_bimi(self, domain: str, *, dmarc_result: DMARCCheckResult) -> BIMIResult:
+    def _analyze_bimi(
+        self, domain: str, *, dmarc_result: DMARCCheckResult
+    ) -> BIMIResult:
         checked_name = f"default._bimi.{domain}"
         try:
-            txt_records = self.dns_service.get_txt_records(checked_name, missing_on_nxdomain=True)
+            txt_records = self.dns_service.get_txt_records(
+                checked_name, missing_on_nxdomain=True
+            )
         except DNSLookupError as exc:
             return BIMIResult(
                 checked_name=checked_name,
@@ -197,7 +248,11 @@ class EmailPolicyService:
                 message="A consulta de BIMI nao foi concluida por indisponibilidade temporaria de DNS.",
             )
 
-        records = [item.strip() for item in txt_records if item.strip().lower().startswith("v=bimi1")]
+        records = [
+            item.strip()
+            for item in txt_records
+            if item.strip().lower().startswith("v=bimi1")
+        ]
         if not records:
             return BIMIResult(
                 checked_name=checked_name,
@@ -223,12 +278,18 @@ class EmailPolicyService:
         if not location:
             warnings.append("O BIMI deveria declarar l= com a localizacao do logotipo.")
         dmarc_dependency = self._bimi_dmarc_dependency(dmarc_result)
-        readiness = self._bimi_readiness(location=location, authority=authority, dmarc_result=dmarc_result)
+        readiness = self._bimi_readiness(
+            location=location, authority=authority, dmarc_result=dmarc_result
+        )
 
         if readiness in {"nao_pronto", "desconhecido"}:
-            recommendations.append("BIMI depende de DMARC com enforcement consistente e pct efetivo.")
+            recommendations.append(
+                "BIMI depende de DMARC com enforcement consistente e pct efetivo."
+            )
         elif readiness == "parcial":
-            recommendations.append("Revise VMC/authority e requisitos do provedor de mailbox antes de considerar BIMI pronto.")
+            recommendations.append(
+                "Revise VMC/authority e requisitos do provedor de mailbox antes de considerar BIMI pronto."
+            )
 
         return BIMIResult(
             checked_name=checked_name,
@@ -249,7 +310,9 @@ class EmailPolicyService:
             checked_name=domain,
             status="nao_implementado",
             message="A checagem DNSSEC ainda nao esta integrada de forma coesa ao fluxo principal.",
-            notes=["A base de schema e apresentacao ja esta pronta para uma etapa futura dedicada."],
+            notes=[
+                "A base de schema e apresentacao ja esta pronta para uma etapa futura dedicada."
+            ],
         )
 
     @staticmethod
@@ -306,8 +369,13 @@ class EmailPolicyService:
             raise RuntimeError(str(exc.reason)) from exc
 
     @staticmethod
-    def _bimi_readiness(*, location: str | None, authority: str | None, dmarc_result: DMARCCheckResult) -> str:
-        if dmarc_result.status != "presente" or dmarc_result.policy not in {"quarantine", "reject"}:
+    def _bimi_readiness(
+        *, location: str | None, authority: str | None, dmarc_result: DMARCCheckResult
+    ) -> str:
+        if dmarc_result.status != "presente" or dmarc_result.policy not in {
+            "quarantine",
+            "reject",
+        }:
             return "nao_pronto"
         if dmarc_result.pct is not None and dmarc_result.pct < 100:
             return "nao_pronto"

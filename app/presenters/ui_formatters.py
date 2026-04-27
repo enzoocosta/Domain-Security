@@ -95,6 +95,7 @@ _BOOLEAN_LABELS = {
 
 def configure_template_filters(templates: Jinja2Templates) -> Jinja2Templates:
     templates.env.filters["format_datetime"] = format_datetime
+    templates.env.filters["format_interval_minutes"] = format_interval_minutes
     templates.env.filters["yes_no"] = yes_no
     templates.env.filters["humanize_token"] = humanize_token
     templates.env.globals["static_asset"] = static_asset
@@ -134,6 +135,18 @@ def format_datetime(value: datetime | None, empty: str = "-") -> str:
         return rendered
     tz_name = value.tzname() or "UTC"
     return f"{rendered} {tz_name}"
+
+
+def format_interval_minutes(value: int | None, empty: str = "-") -> str:
+    if value is None or value <= 0:
+        return empty
+    if value % 1440 == 0:
+        days = value // 1440
+        return f"{days} dia" if days == 1 else f"{days} dias"
+    if value % 60 == 0:
+        hours = value // 60
+        return f"{hours} hora" if hours == 1 else f"{hours} horas"
+    return f"{value} min"
 
 
 def yes_no(value: bool | None, empty: str = "-") -> str:
@@ -254,5 +267,7 @@ def make_list_block(label: str, items: Iterable[Any]) -> dict[str, Any] | None:
     return {"label": label, "items": cleaned}
 
 
-def compact_list_blocks(blocks: Iterable[dict[str, Any] | None]) -> list[dict[str, Any]]:
+def compact_list_blocks(
+    blocks: Iterable[dict[str, Any] | None],
+) -> list[dict[str, Any]]:
     return [block for block in blocks if block is not None]

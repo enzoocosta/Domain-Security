@@ -9,7 +9,11 @@ router = APIRouter(tags=["wordpress"])
 service = WordPressSecurityService()
 
 
-@router.post("/wordpress/analyze", response_model=WordPressAnalysisResponse, summary="Analisar seguranca publica de um site WordPress")
+@router.post(
+    "/wordpress/analyze",
+    response_model=WordPressAnalysisResponse,
+    summary="Analisar seguranca publica de um site WordPress",
+)
 def analyze_wordpress(payload: WordPressAnalysisRequest) -> WordPressAnalysisResponse:
     try:
         return service.analyze_site(payload.url, options=payload.options)

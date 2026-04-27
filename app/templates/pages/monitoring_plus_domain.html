@@ -7,8 +7,14 @@
     {% if error %}
       <div class="message message--error">{{ error }}</div>
     {% endif %}
+    {% if detail.monitoring.scheduler_warning %}
+      <div class="message message--warning top-spacing">{{ detail.monitoring.scheduler_warning }}</div>
+    {% endif %}
     <div class="action-row section-actions-bottom">
       <a href="/monitoring-plus" class="button button--ghost button--small">Voltar ao dashboard</a>
+      <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/run-now" class="inline-form">
+        <button type="submit" class="button button--primary button--small">Executar check agora</button>
+      </form>
       {% if detail.subscription and detail.subscription.is_entitled %}
         <form method="post" action="/monitoring-plus/domains/{{ detail.monitored_domain_id }}/cancel" class="inline-form">
           <button type="submit" class="button button--danger button--small">Cancelar assinatura local</button>
@@ -20,14 +26,53 @@
       {% endif %}
     </div>
     <div class="metrics-grid">
+      {{ render_metric_card("Plano", detail.plan | humanize_token, "neutral") }}
+      {{ render_metric_card("Intervalo", detail.check_interval_minutes | format_interval_minutes, "neutral") }}
       {{ render_metric_card("Assinatura", detail.subscription.status | humanize_token if detail.subscription else "Sem assinatura", "neutral") }}
       {{ render_metric_card("Cobertura", "Ativa" if detail.subscription and detail.subscription.is_entitled else "Inativa", "success" if detail.subscription and detail.subscription.is_entitled else "warning") }}
       {{ render_metric_card("Trial restante", detail.subscription.days_left_in_trial if detail.subscription and detail.subscription.days_left_in_trial is not none else "-", "info") }}
+      {{ render_metric_card("Ultimo score valido", detail.monitoring.domain.latest_score if detail.monitoring.domain.latest_score is not none else "-", "info") }}
+      {{ render_metric_card("Proxima checagem", detail.monitoring.domain.next_check_at | format_datetime, "neutral") }}
       {{ render_metric_card("Eventos na ultima hora", detail.stats.events_last_hour, "neutral") }}
       {{ render_metric_card("Eventos em 24h", detail.stats.events_last_24h, "neutral") }}
       {{ render_metric_card("Incidentes abertos", detail.stats.open_incidents, "danger" if detail.stats.open_incidents else "neutral") }}
       {{ render_metric_card("Ultimo evento", detail.stats.last_event_at | format_datetime if detail.stats.last_event_at else "nenhum", "neutral") }}
     </div>
+  {% endcall %}
+
+  {% call render_section_card("Contatos de alerta", "Entrega", "O plano Plus permite distribuir os alertas para varios destinatarios.") %}
+    {% if detail.alert_contacts %}
+      <div class="list-block">
+        <ul class="bullet-list">
+          {% for item in detail.alert_contacts %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhum contato adicional configurado</h3>
+        <p>Sem contatos extras, os alertas continuam usando o e-mail principal do workspace.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
+
+  {% call render_section_card("Score recente", "Mini-grafico", "Historico dos ultimos scores validos produzidos pelo runner tecnico.") %}
+    {% if detail.monitoring.score_history %}
+      <div class="score-sparkline" aria-label="Historico recente de score">
+        {% for point in detail.monitoring.score_history %}
+          <div class="score-sparkline__bar-wrapper" title="{{ point.recorded_at | format_datetime }} - {{ point.score }}">
+            <div class="score-sparkline__bar" style="height: {{ [point.score, 8] | max }}%;"></div>
+            <span class="score-sparkline__value">{{ point.score }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Sem score historico ainda</h3>
+        <p>O mini-grafico aparece assim que o runner tiver execucoes validas salvas.</p>
+      </div>
+    {% endif %}
   {% endcall %}
 
   {% call render_section_card("Ingestao de trafego", "Tokens por dominio", "Cada token autentica um unico dominio premium no endpoint externo.") %}
@@ -149,4 +194,36 @@
       </div>
     {% endcall %}
   {% endif %}
+
+  {% call render_section_card("Historico tecnico de checks", "Runner", "Execucoes do runner base que alimentam score, alertas e o aviso de scheduler.") %}
+    {% if detail.monitoring.recent_runs %}
+      <div class="timeline-list">
+        {% for run in detail.monitoring.recent_runs %}
+          <article class="timeline-card">
+            <div class="timeline-card__header">
+              <div>
+                <h3>Execucao #{{ run.id }}</h3>
+                <p>{{ run.started_at | format_datetime }}{% if run.completed_at %} ate {{ run.completed_at | format_datetime }}{% endif %}</p>
+              </div>
+              <span class="badge badge--{{ run.severity or 'neutral' }}">{{ run.severity | humanize_token if run.severity else run.run_status | humanize_token }}</span>
+            </div>
+            <div class="metrics-grid metrics-grid--compact">
+              {{ render_metric_card("Status", run.run_status | humanize_token, "neutral") }}
+              {{ render_metric_card("Origem", run.trigger_type | humanize_token, "neutral") }}
+              {{ render_metric_card("Score", run.score if run.score is not none else '-', "info") }}
+              {{ render_metric_card("Severity", run.severity | humanize_token if run.severity else '-', "neutral") }}
+            </div>
+            {% if run.error_message %}
+              <p class="detail-card__note">Erro: {{ run.error_message }}</p>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <h3>Nenhuma execucao ainda</h3>
+        <p>O historico do runner aparece aqui assim que o dominio receber checks executados.</p>
+      </div>
+    {% endif %}
+  {% endcall %}
 {% endblock %}

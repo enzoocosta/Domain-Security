@@ -6,7 +6,11 @@ from dns.reversename import from_address
 from dns.resolver import LifetimeTimeout, NXDOMAIN, NoNameservers, Resolver
 
 from app.core.config import settings
-from app.core.exceptions import DNSDomainNotFoundError, DNSNoResponseError, DNSTimeoutError
+from app.core.exceptions import (
+    DNSDomainNotFoundError,
+    DNSNoResponseError,
+    DNSTimeoutError,
+)
 
 
 @dataclass(frozen=True)
@@ -46,7 +50,9 @@ class DNSLookupService:
         ]
         return sorted(records, key=lambda item: (item.preference, item.exchange))
 
-    def get_txt_records(self, name: str, *, missing_on_nxdomain: bool = False) -> list[str]:
+    def get_txt_records(
+        self, name: str, *, missing_on_nxdomain: bool = False
+    ) -> list[str]:
         answer = self._resolve(name, "TXT", missing_on_nxdomain=missing_on_nxdomain)
         if answer is None or answer.rrset is None:
             return []
@@ -72,7 +78,9 @@ class DNSLookupService:
         return records
 
     def get_reverse_dns(self, address: str) -> str | None:
-        answer = self._resolve(str(from_address(address)), "PTR", missing_on_nxdomain=True)
+        answer = self._resolve(
+            str(from_address(address)), "PTR", missing_on_nxdomain=True
+        )
         if answer is None or answer.rrset is None:
             return None
         for record in answer:
@@ -81,7 +89,9 @@ class DNSLookupService:
                 return value
         return None
 
-    def _resolve(self, name: str, record_type: str, *, missing_on_nxdomain: bool = False):
+    def _resolve(
+        self, name: str, record_type: str, *, missing_on_nxdomain: bool = False
+    ):
         try:
             return self.resolver.resolve(
                 name,

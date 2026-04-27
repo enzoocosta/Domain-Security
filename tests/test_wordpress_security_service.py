@@ -1,4 +1,7 @@
-from app.services.wordpress_security_service import FetchedPage, WordPressSecurityService
+from app.services.wordpress_security_service import (
+    FetchedPage,
+    WordPressSecurityService,
+)
 
 
 class StubWordPressSecurityService(WordPressSecurityService):
@@ -18,7 +21,9 @@ class StubWordPressSecurityService(WordPressSecurityService):
         self.page_calls.append((method, url))
         return self.page_payloads[(method, url)]
 
-    def _fetch_optional_page(self, url: str, *, method: str = "GET") -> FetchedPage | None:
+    def _fetch_optional_page(
+        self, url: str, *, method: str = "GET"
+    ) -> FetchedPage | None:
         self.page_calls.append((method, url))
         return self.page_payloads.get((method, url))
 
@@ -31,7 +36,12 @@ class StubWordPressSecurityService(WordPressSecurityService):
         return self.json_payloads.get(url)
 
 
-def _page(url: str, text: str = "", status_code: int = 200, headers: dict[str, list[str]] | None = None) -> FetchedPage:
+def _page(
+    url: str,
+    text: str = "",
+    status_code: int = 200,
+    headers: dict[str, list[str]] | None = None,
+) -> FetchedPage:
     return FetchedPage(
         url=url,
         text=text,
@@ -124,7 +134,9 @@ def test_wordpress_security_service_detects_core_plugin_theme_and_multilayer_con
                                     "link": "https://www.cve.org/CVERecord?id=CVE-2020-35489",
                                 }
                             ],
-                            "impact": {"cvss3": {"score": "10.0", "severity": "critical"}},
+                            "impact": {
+                                "cvss3": {"score": "10.0", "severity": "critical"}
+                            },
                         }
                     ],
                 },
@@ -149,7 +161,11 @@ def test_wordpress_security_service_detects_core_plugin_theme_and_multilayer_con
     assert result.detection.versionHidden is False
     assert len([signal for signal in result.detection.signals if signal.detected]) >= 6
     assert result.versionDetection.version == "6.4.2"
-    assert [item.slug for item in result.items] == ["wordpress-core", "contact-form-7", "astra"]
+    assert [item.slug for item in result.items] == [
+        "wordpress-core",
+        "contact-form-7",
+        "astra",
+    ]
     assert result.items[0].status == "critico"
     assert result.items[1].vulnerabilidades[0].cve == "CVE-2020-35489"
     assert result.items[1].vulnerabilidades[0].corrigidoNaVersao == "> 5.3.2"
