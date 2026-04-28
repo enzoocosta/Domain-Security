@@ -406,6 +406,8 @@ def test_wordpress_page_renders_selector_with_technical_and_common_modes(client)
     assert "data-wp-tech-loader" in response.text
     assert "data-wp-tech-step-list" in response.text
     assert "hidden" in response.text
+    assert 'data-wp-common-loading hidden style="display: none;"' in response.text
+    assert 'data-wp-tech-loading hidden style="display: none;"' in response.text
 
 
 def test_wordpress_technical_report_page_renders_empty_state_shell(client):

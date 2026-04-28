@@ -464,9 +464,9 @@
 
   function renderCommon(data) {
     lastAnalysis = data;
-    commonResults.hidden = false;
-    commonLoading.hidden = true;
-    commonContent.hidden = false;
+    showElement(commonResults);
+    hideElement(commonLoading);
+    showElement(commonContent);
     setAlert(commonAlert, "info", "");
 
     commonSite.textContent = "Resumo publico para " + data.scannedUrl;
@@ -477,7 +477,7 @@
         "warning",
         "Nao foi possivel confirmar que este site utiliza WordPress. Verifique a URL e tente novamente."
       );
-      commonContent.hidden = true;
+      hideElement(commonContent);
       return;
     }
 
@@ -761,9 +761,9 @@
   function renderTechnical(data) {
     lastAnalysis = data;
     persistTechnicalReport(data);
-    techResults.hidden = false;
-    techLoading.hidden = true;
-    techContent.hidden = false;
+    showElement(techResults);
+    hideElement(techLoading);
+    showElement(techContent);
     setAlert(techAlert, "info", "");
 
     techSite.textContent = data.scannedUrl;
@@ -784,7 +784,7 @@
         "warning",
         "Nao foi possivel confirmar que este site utiliza WordPress. Verifique a URL e tente novamente."
       );
-      techContent.hidden = true;
+      hideElement(techContent);
       return;
     }
 
@@ -971,9 +971,10 @@
 
   function resetAnalysis(mode) {
     if (mode === "common") {
-      commonResults.hidden = true;
-      commonAlert.hidden = true;
-      commonContent.hidden = true;
+      hideElement(commonResults);
+      hideElement(commonLoading);
+      hideElement(commonAlert);
+      hideElement(commonContent);
       if (commonForm) {
         commonForm.elements.site.value = "";
         commonForm.elements.site.focus();
@@ -981,9 +982,10 @@
       return;
     }
 
-    techResults.hidden = true;
-    techAlert.hidden = true;
-    techContent.hidden = true;
+    hideElement(techResults);
+    hideElement(techLoading);
+    hideElement(techAlert);
+    hideElement(techContent);
     if (techForm) {
       techForm.elements.site.value = "";
       techForm.elements.site.focus();
@@ -1020,10 +1022,10 @@
       return;
     }
 
-    commonResults.hidden = false;
-    commonLoading.hidden = false;
-    commonContent.hidden = true;
-    commonAlert.hidden = true;
+    showElement(commonResults);
+    showElement(commonLoading);
+    hideElement(commonContent);
+    hideElement(commonAlert);
 
     var stopProgress = startProgress(
       [
@@ -1051,7 +1053,7 @@
       })
       .catch(function (error) {
         stopProgress("Falha na analise.");
-        commonLoading.hidden = true;
+        hideElement(commonLoading);
         setAlert(commonAlert, "warning", error.message);
       });
   }
@@ -1072,10 +1074,10 @@
       return;
     }
 
-    techResults.hidden = false;
-    techLoading.hidden = false;
-    techContent.hidden = true;
-    techAlert.hidden = true;
+    showElement(techResults);
+    showElement(techLoading);
+    hideElement(techContent);
+    hideElement(techAlert);
     setTechnicalLoadingState("loading", {
       steps: steps,
       activeIndex: 0,
@@ -1101,7 +1103,7 @@
       })
       .catch(function (error) {
         stopProgress("Falha na analise.");
-        techLoading.hidden = true;
+        hideElement(techLoading);
         if (techPhaseLabel) {
           techPhaseLabel.textContent = "Analise interrompida";
         }
