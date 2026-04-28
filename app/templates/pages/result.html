@@ -23,10 +23,10 @@
     </section>
   {% endif %}
 
-  {% call render_section_card("Resultado da analise", "Resumo executivo", report.executive.summary, "section-card--hero section-card--executive", report.executive.actions) %}
+  {% call render_section_card("Resultado da análise", "Resumo executivo", report.executive.summary, "section-card--hero section-card--executive", report.executive.actions) %}
     <div class="summary-hero result-hero-layout">
       <div class="summary-hero__copy">
-        <p class="eyebrow-label">Dominio analisado</p>
+        <p class="eyebrow-label">Domínio analisado</p>
         <h1>{{ report.executive.domain }}</h1>
         <p class="summary-hero__status">{{ report.executive.status_text }}</p>
         <div class="summary-meta">
@@ -96,7 +96,7 @@
 
   {% include "partials/premium_offer_card.html" %}
 
-  {% call render_section_card("Detalhamento do score", "Score", "Visao rapida por camada analisada para localizar os pontos mais fracos.", "section-card--score") %}
+  {% call render_section_card("Detalhamento do score", "Score", "Visão rápida por camada analisada para localizar os pontos mais fracos.", "section-card--score") %}
     <div class="metrics-grid metrics-grid--score">
       {% for metric in report.score_breakdown %}
         {{ render_metric_card(metric.label, metric.value, metric.tone, metric.detail) }}
@@ -104,7 +104,7 @@
     </div>
   {% endcall %}
 
-  {% call render_section_card("Mudancas desde a ultima analise", "Evolucao", report.changes.message) %}
+  {% call render_section_card("Mudanças desde a última análise", "Evolução", report.changes.message) %}
     {% if report.changes.metrics %}
       <div class="metrics-grid">
         {% for metric in report.changes.metrics %}
@@ -160,12 +160,12 @@
     {% else %}
       <div class="empty-state">
         <h3>Nenhum finding relevante</h3>
-        <p>Esta analise nao retornou achados prioritarios para destacar neste momento.</p>
+        <p>Esta análise não retornou achados prioritários para destacar neste momento.</p>
       </div>
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Recomendacoes", "Plano de acao", "Ordem do mais importante para o menos importante, com contexto curto para execucao.") %}
+  {% call render_section_card("Recomendações", "Plano de ação", "Ordem do mais importante para o menos importante, com contexto curto para execução.") %}
     {% if report.recommendations %}
       <div class="recommendation-list">
         {% for item in report.recommendations %}
@@ -180,14 +180,14 @@
             <path d="m8.5 12.5 2.3 2.3 4.7-5.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path>
           </svg>
         </span>
-        <h3>Nenhuma acao necessaria</h3>
-        <p>Nenhuma acao necessaria no momento.</p>
+        <h3>Nenhuma ação necessária</h3>
+        <p>Nenhuma ação necessária no momento.</p>
       </div>
     {% endif %}
   {% endcall %}
 
   {% for section in report.technical_sections %}
-    {% call render_section_card(section.title, "Secao tecnica", section.description, "section-card--technical", None, section.id) %}
+    {% call render_section_card(section.title, "Seção técnica", section.description, "section-card--technical", None, section.id) %}
       {% if section.cards %}
         <div class="technical-grid">
           {% for card in section.cards %}

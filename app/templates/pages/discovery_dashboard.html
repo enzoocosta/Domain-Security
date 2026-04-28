@@ -3,26 +3,26 @@
 {% from "partials/metric_card.html" import render_metric_card %}
 
 {% block content %}
-  {% call render_section_card("Asset Discovery", "Modulo separado", "Descoberta de ativos inspirada em Amass, isolada do score principal do dominio.") %}
+  {% call render_section_card("Asset Discovery", "Módulo separado", "Descoberta de ativos inspirada em Amass, isolada do score principal do domínio.") %}
     <div class="inline-meta">
-      <span>Execucoes salvas: {{ runs | length }}</span>
-      <span>Fluxo separado da analise publica</span>
+      <span>Execuções salvas: {{ runs | length }}</span>
+      <span>Fluxo separado da análise pública</span>
       <span>Resultados podem refletir cobertura parcial do attack surface</span>
     </div>
   {% endcall %}
 
-  {% call render_section_card("Executar discovery", "Nova execucao", "A feature persiste os achados e marca quais subdominios ainda nao tinham sido observados.") %}
+  {% call render_section_card("Executar discovery", "Nova execução", "A feature persiste os achados e marca quais subdomínios ainda não tinham sido observados.") %}
     {% if error %}
       <div class="message message--error">{{ error }}</div>
     {% endif %}
     <form method="post" action="/discovery/runs" class="form-layout">
-      <label for="domain">Dominio</label>
+      <label for="domain">Domínio</label>
       <input id="domain" name="domain" type="text" maxlength="320" placeholder="example.com" required />
       <button type="submit" class="button button--primary">Executar discovery</button>
     </form>
   {% endcall %}
 
-  {% call render_section_card("Historico de execucoes", "Attack surface", "Cada execucao mostra status, volume de ativos e quantos achados eram realmente novos.") %}
+  {% call render_section_card("Histórico de execuções", "Attack surface", "Cada execução mostra status, volume de ativos e quantos achados eram realmente novos.") %}
     {% if runs %}
       <div class="timeline-list">
         {% for run in runs %}
@@ -47,8 +47,8 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <h3>Nenhuma execucao salva</h3>
-        <p>O modulo de discovery ainda nao possui execucoes registradas.</p>
+        <h3>Nenhuma execução salva</h3>
+        <p>O módulo de discovery ainda não possui execuções registradas.</p>
       </div>
     {% endif %}
   {% endcall %}

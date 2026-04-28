@@ -16,7 +16,7 @@
       <div class="premium-offer-card__panel">
         {% if monitoring_plus_offer.requires_auth %}
           <p class="premium-offer-card__panel-copy">
-            O painel premium exige autenticacao porque a assinatura e os tokens de ingestao
+            O painel premium exige autenticação porque a assinatura e os tokens de ingestão
             ficam vinculados ao seu workspace.
           </p>
           <div class="action-row">
@@ -31,14 +31,14 @@
           <form method="post" action="/monitoring-plus/activate" class="premium-offer-form">
             <input type="hidden" name="domain" value="{{ monitoring_plus_offer.analysis_domain }}" />
 
-            <label for="monitoring-plus-input-label">Rotulo opcional</label>
+            <label for="monitoring-plus-input-label">Rótulo opcional</label>
             <input
               id="monitoring-plus-input-label"
               name="input_label"
               type="text"
               maxlength="255"
               value="{{ monitoring_plus_offer.input_label }}"
-              placeholder="Ex.: dominio principal"
+              placeholder="Ex.: domínio principal"
             />
 
             <label for="monitoring-plus-frequency">Intervalo base do monitoramento</label>

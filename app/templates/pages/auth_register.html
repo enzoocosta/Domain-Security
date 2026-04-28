@@ -3,7 +3,7 @@
 
 {% block content %}
   <div class="single-column">
-    {% call render_section_card("Criar conta", "Acesso autenticado", "Use esta area para acompanhar dominios, execucoes recorrentes e alertas de risco.") %}
+    {% call render_section_card("Criar conta", "Acesso autenticado", "Use esta área para acompanhar domínios, execuções recorrentes e alertas de risco.") %}
       {% if error %}
         <div class="message message--error">{{ error }}</div>
       {% endif %}
@@ -17,7 +17,7 @@
         <button type="submit" class="button button--primary">Criar conta</button>
       </form>
 
-      <p class="text-muted">Ja tem conta? <a href="/auth/login{% if next_path %}?next={{ next_path }}{% endif %}">Entrar</a>.</p>
+      <p class="text-muted">Já tem conta? <a href="/auth/login{% if next_path %}?next={{ next_path }}{% endif %}">Entrar</a>.</p>
     {% endcall %}
   </div>
 {% endblock %}

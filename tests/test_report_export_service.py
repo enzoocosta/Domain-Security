@@ -113,4 +113,4 @@ def test_report_export_service_builds_pdf_html_and_returns_bytes():
     assert content == b"%PDF-test"
     assert renderer.calls
     assert "example.com" in renderer.calls[0]["html"]
-    assert "Relatorio executivo e tecnico" in renderer.calls[0]["html"]
+    assert "Relatório executivo e técnico" in renderer.calls[0]["html"]

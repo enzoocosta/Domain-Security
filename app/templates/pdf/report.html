@@ -9,7 +9,7 @@
       <div class="hero__brand">Domain Security Checker</div>
       <div class="hero__content">
         <div>
-          <p class="eyebrow">Relatorio executivo e tecnico</p>
+          <p class="eyebrow">Relatório executivo e técnico</p>
           <h1>{{ report.executive.domain }}</h1>
           <p class="hero__summary">{{ report.executive.summary }}</p>
           <p class="hero__meta">
@@ -53,7 +53,7 @@
 
     <section class="section">
       <div class="section__header">
-        <p class="eyebrow">Visao executiva</p>
+        <p class="eyebrow">Visão executiva</p>
         <h2>Findings principais</h2>
       </div>
       {% if report.findings %}
@@ -70,14 +70,14 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="muted">Nenhum finding prioritario foi destacado neste snapshot.</p>
+        <p class="muted">Nenhum finding prioritário foi destacado neste snapshot.</p>
       {% endif %}
     </section>
 
     <section class="section">
       <div class="section__header">
-        <p class="eyebrow">Plano de acao</p>
-        <h2>Recomendacoes priorizadas</h2>
+        <p class="eyebrow">Plano de ação</p>
+        <h2>Recomendações priorizadas</h2>
       </div>
       {% if report.recommendations %}
         <div class="stack">
@@ -87,21 +87,21 @@
                 <h3>{{ item.title }}</h3>
                 <span class="pill pill--warning">{{ item.priority }}</span>
               </div>
-              <p><strong>Acao:</strong> {{ item.action }}</p>
+              <p><strong>Ação:</strong> {{ item.action }}</p>
               <p>{{ item.rationale }}</p>
               <p class="muted">Categoria: {{ item.category }}</p>
             </article>
           {% endfor %}
         </div>
       {% else %}
-        <p class="muted">Nenhuma acao necessaria no momento.</p>
+        <p class="muted">Nenhuma ação necessária no momento.</p>
       {% endif %}
     </section>
 
     {% for section in report.sections %}
       <section class="section">
         <div class="section__header">
-          <p class="eyebrow">Resumo tecnico</p>
+          <p class="eyebrow">Resumo técnico</p>
           <h2>{{ section.title }}</h2>
           <p>{{ section.summary }}</p>
         </div>
@@ -113,7 +113,7 @@
                 <span class="fact-card__label">{{ item.label }}</span>
                 <strong>{{ item.value }}</strong>
                 {% if item.kind == "inference" %}
-                  <span class="fact-card__kind">Inferencia</span>
+                  <span class="fact-card__kind">Inferência</span>
                 {% elif item.kind == "approximate" %}
                   <span class="fact-card__kind">Aproximado</span>
                 {% endif %}
@@ -147,7 +147,7 @@
       <section class="section">
         <div class="section__header">
           <p class="eyebrow">Leitura cuidadosa</p>
-          <h2>Notas de interpretacao</h2>
+          <h2>Notas de interpretação</h2>
         </div>
         <div class="list-card">
           <ul>

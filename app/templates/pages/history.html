@@ -3,9 +3,9 @@
 {% from "partials/metric_card.html" import render_metric_card %}
 
 {% block content %}
-  {% call render_section_card("Historico de analises", "Timeline", "Snapshots salvos para acompanhar evolucao de score e severidade.") %}
+  {% call render_section_card("Histórico de análises", "Timeline", "Snapshots salvos para acompanhar evolução de score e severidade.") %}
     <div class="inline-meta">
-      <span>Dominio: {{ history.domain }}</span>
+      <span>Domínio: {{ history.domain }}</span>
       <span>Total de snapshots: {{ history.items | length }}</span>
     </div>
 
@@ -30,8 +30,8 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <h3>Nenhuma analise salva</h3>
-        <p>Nenhuma analise salva foi encontrada para este dominio.</p>
+        <h3>Nenhuma análise salva</h3>
+        <p>Nenhuma análise salva foi encontrada para este domínio.</p>
       </div>
     {% endif %}
   {% endcall %}

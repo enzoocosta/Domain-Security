@@ -350,20 +350,20 @@ def test_wordpress_page_renders_selector_with_technical_and_common_modes(client)
     response = client.get("/wordpress")
 
     assert response.status_code == 200
-    assert "Verifique a seguranca do seu site WordPress" in response.text
-    assert "Sou usuario comum" in response.text
-    assert "Sou tecnico de TI" in response.text
+    assert "Verifique a segurança do seu site WordPress" in response.text
+    assert "Sou usuário comum" in response.text
+    assert "Sou técnico de TI" in response.text
     assert "Verificar meu site agora" in response.text
     assert "O que fazer?" not in response.text
-    assert "Iniciar Analise Tecnica" in response.text
-    assert "Verificar versao do WordPress exposta" in response.text
-    assert "Abrir relatorio tecnico completo" in response.text
-    assert "Exportar PDF tecnico" in response.text
+    assert "Iniciar Análise Técnica" in response.text
+    assert "Verificar versão do WordPress exposta" in response.text
+    assert "Abrir relatório técnico completo" in response.text
+    assert "Exportar PDF técnico" in response.text
     assert "Copiar JSON" in response.text
-    assert "Gerar relatorio para o cliente" in response.text
+    assert "Gerar relatório para o cliente" in response.text
     assert "Verificar outro site" not in response.text
     assert "Top 5 vulnerabilidades principais" in response.text
-    assert "Pipeline de verificacao" in response.text
+    assert "Pipeline de verificação" in response.text
     assert "Resultados tecnicos" not in response.text
     assert 'id="secao-escolha"' in response.text
     assert 'id="bloco-comum"' in response.text
@@ -379,14 +379,14 @@ def test_wordpress_technical_report_page_renders_empty_state_shell(client):
 
     assert response.status_code == 200
     assert (
-        "Relatorio de Seguranca WordPress - Analise Tecnica Completa" in response.text
+        "Relatório de Segurança WordPress - Análise Técnica Completa" in response.text
     )
-    assert "Nenhum relatorio tecnico disponivel" in response.text
+    assert "Nenhum relatório técnico disponível" in response.text
     assert "Exportar PDF" in response.text
-    assert "Voltar a analise" in response.text
+    assert "Voltar à análise" in response.text
     assert "Mapa de Risco" in response.text
     assert "Itens Seguros" in response.text
-    assert "Recomendacoes" in response.text
+    assert "Recomendações" in response.text
 
 
 def test_wordpress_analysis_endpoint_returns_backend_payload(client, monkeypatch):
@@ -506,13 +506,13 @@ def test_form_submission_renders_new_sections(client, monkeypatch):
     response = client.post("/analyze", data={"target": "example.com"})
 
     assert response.status_code == 200
-    assert "Resultado da analise" in response.text
+    assert "Resultado da análise" in response.text
     assert "WHOIS / Registro" in response.text
     assert "SSL do website" in response.text
     assert "IP Intelligence" in response.text
     assert "Detalhamento do score" in response.text
-    assert "Mudancas desde a ultima analise" in response.text
-    assert "Recomendacoes" in response.text
+    assert "Mudanças desde a última análise" in response.text
+    assert "Recomendações" in response.text
     assert "Mail Transport Policies" not in response.text
     assert "Technical Notes" not in response.text
     assert "SPF em softfail" in response.text
@@ -627,8 +627,8 @@ def test_monitoring_plus_activation_flow_renders_domain_detail(client):
 
     assert response.status_code == 200
     assert "Dominio premium" in response.text
-    assert "Ingestao de trafego" in response.text
-    assert "Endpoint de ingestao" in response.text
+    assert "Ingestão de tráfego" in response.text
+    assert "Endpoint de ingestão" in response.text
 
 
 def test_traffic_ingest_endpoint_accepts_valid_premium_token(client):
@@ -744,7 +744,7 @@ def test_history_page_renders_items(client, monkeypatch):
     response = client.get("/history/example.com")
 
     assert response.status_code == 200
-    assert "Historico de analises" in response.text
+    assert "Histórico de análises" in response.text
     assert "Resumo da analise salva." in response.text
 
 
@@ -804,7 +804,7 @@ def test_register_login_and_create_monitored_domain(client):
 
     logout_response = client.post("/auth/logout", follow_redirects=True)
     assert logout_response.status_code == 200
-    assert "Diagnostico para seguranca de dominio" in logout_response.text
+    assert "Diagnóstico para segurança de Domínio" in logout_response.text
 
     login_response = client.post(
         "/auth/login",

@@ -8,8 +8,8 @@
       >
     </a>
 
-    <nav class="site-nav" aria-label="Navegacao principal">
-      <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Analise publica</a>
+    <nav class="site-nav" aria-label="Navegação principal">
+      <a href="/" class="{% if request.url.path == '/' %}is-active{% endif %}">Análise pública</a>
       <a href="/monitoring" class="{% if request.url.path.startswith('/monitoring') %}is-active{% endif %}">Monitoramento</a>
       <a href="/monitoring-plus" class="{% if request.url.path.startswith('/monitoring-plus') %}is-active{% endif %}">Monitoring Plus</a>
       <a href="/wordpress" class="{% if request.url.path.startswith('/wordpress') %}is-active{% endif %}">WordPress</a>

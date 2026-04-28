@@ -3,10 +3,10 @@
 {% from "partials/metric_card.html" import render_metric_card %}
 
 {% block content %}
-  {% call render_section_card("Monitoramento autenticado", "Workspace privado", "Area focada em acompanhamento recorrente de mudancas criticas.") %}
+  {% call render_section_card("Monitoramento autenticado", "Workspace privado", "Área focada em acompanhamento recorrente de mudanças críticas.") %}
     <div class="inline-meta">
-      <span>Usuario: {{ dashboard.user_email }}</span>
-      <span>Dominios monitorados: {{ dashboard.monitored_domains | length }}</span>
+      <span>Usuário: {{ dashboard.user_email }}</span>
+      <span>Domínios monitorados: {{ dashboard.monitored_domains | length }}</span>
       <span>Alertas abertos: {{ dashboard.open_alerts | length }}</span>
     </div>
     {% if dashboard.scheduler_warning %}
@@ -14,16 +14,16 @@
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Adicionar dominio monitorado", "Cadastro", "Plano standard com checks recorrentes e intervalo minimo de 6 horas.") %}
+  {% call render_section_card("Adicionar domínio monitorado", "Cadastro", "Plano standard com checks recorrentes e intervalo mínimo de 6 horas.") %}
     {% if error %}
       <div class="message message--error">{{ error }}</div>
     {% endif %}
 
     <form method="post" action="/monitoring/domains" class="form-layout">
-      <label for="domain">Dominio</label>
+      <label for="domain">Domínio</label>
       <input id="domain" name="domain" type="text" maxlength="320" placeholder="example.com" required />
-      <label for="input_label">Rotulo opcional</label>
-      <input id="input_label" name="input_label" type="text" maxlength="255" placeholder="Dominio principal" />
+      <label for="input_label">Rótulo opcional</label>
+      <input id="input_label" name="input_label" type="text" maxlength="255" placeholder="Domínio principal" />
       <label for="check_interval_minutes">Intervalo</label>
       <select id="check_interval_minutes" name="check_interval_minutes">
         <option value="360">6 horas</option>
@@ -36,7 +36,7 @@
     </form>
   {% endcall %}
 
-  {% call render_section_card("API externa de monitoramento", "Tokens", "Tokens pessoais autenticam apenas a API externa de monitoramento e aparecem completos somente na criacao.") %}
+  {% call render_section_card("API externa de monitoramento", "Tokens", "Tokens pessoais autenticam apenas a API externa de monitoramento e aparecem completos somente na criação.") %}
     {% if api_token_error %}
       <div class="message message--error">{{ api_token_error }}</div>
     {% endif %}
@@ -44,14 +44,14 @@
     {% if new_api_token %}
       <div class="message message--success">
         <strong>Token criado com sucesso.</strong>
-        <p>Copie agora, porque ele nao sera exibido novamente.</p>
+        <p>Copie agora, porque ele não será exibido novamente.</p>
         <code>{{ new_api_token }}</code>
       </div>
     {% endif %}
 
     <form method="post" action="/monitoring/api-tokens" class="form-layout">
       <label for="token_name">Nome do token</label>
-      <input id="token_name" name="token_name" type="text" maxlength="100" placeholder="Integracao monitoramento" required />
+      <input id="token_name" name="token_name" type="text" maxlength="100" placeholder="Integração monitoramento" required />
       <button type="submit" class="button button--secondary">Gerar token</button>
     </form>
 
@@ -68,7 +68,7 @@
             </div>
             <div class="metrics-grid metrics-grid--compact">
               {{ render_metric_card("Criado em", token.created_at | format_datetime, "neutral") }}
-              {{ render_metric_card("Ultimo uso", token.last_used_at | format_datetime if token.last_used_at else 'ainda nao usado', "neutral") }}
+              {{ render_metric_card("Último uso", token.last_used_at | format_datetime if token.last_used_at else 'ainda não usado', "neutral") }}
             </div>
             <div class="action-row">
               {% if token.is_active %}
@@ -92,7 +92,7 @@
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Alertas abertos", "Prioridade", "Mudancas de postura e alertas ativos que merecem atencao.") %}
+  {% call render_section_card("Alertas abertos", "Prioridade", "Mudanças de postura e alertas ativos que merecem atenção.") %}
     {% if dashboard.open_alerts %}
       <div class="recommendation-list">
         {% for alert in dashboard.open_alerts %}
@@ -117,7 +117,7 @@
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Dominios monitorados", "Inventario", "Cada dominio lista plano, intervalo, score valido mais recente e a proxima checagem.") %}
+  {% call render_section_card("Domínios monitorados", "Inventário", "Cada domínio lista plano, intervalo, score válido mais recente e a próxima checagem.") %}
     {% if dashboard.monitored_domains %}
       <div class="timeline-list">
         {% for item in dashboard.monitored_domains %}
@@ -137,11 +137,11 @@
             <div class="metrics-grid metrics-grid--compact">
               {{ render_metric_card("Plano", item.plan | humanize_token, "neutral") }}
               {{ render_metric_card("Intervalo", item.check_interval_minutes | format_interval_minutes, "neutral") }}
-              {{ render_metric_card("Ultimo estado valido", item.last_run_at | format_datetime if item.last_run_at else 'ainda nao executado', "neutral") }}
-              {{ render_metric_card("Proxima checagem", item.next_check_at | format_datetime, "info") }}
+              {{ render_metric_card("Último estado válido", item.last_run_at | format_datetime if item.last_run_at else 'ainda não executado', "neutral") }}
+              {{ render_metric_card("Próxima checagem", item.next_check_at | format_datetime, "info") }}
               {{ render_metric_card("Status do monitoramento", item.monitoring_status | humanize_token, "neutral") }}
-              {{ render_metric_card("Status da ultima tentativa", item.latest_run_status or item.last_status or 'agendado', "neutral") }}
-              {{ render_metric_card("Ultimo score", item.latest_score if item.latest_score is not none else '-', "info") }}
+              {{ render_metric_card("Status da última tentativa", item.latest_run_status or item.last_status or 'agendado', "neutral") }}
+              {{ render_metric_card("Último score", item.latest_score if item.latest_score is not none else '-', "info") }}
               {{ render_metric_card("Alertas abertos", item.open_alert_count, "warning") }}
             </div>
             <div class="action-row">
@@ -168,8 +168,8 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <h3>Nenhum dominio monitorado</h3>
-        <p>Nenhum dominio monitorado foi cadastrado ainda.</p>
+        <h3>Nenhum domínio monitorado</h3>
+        <p>Nenhum domínio monitorado foi cadastrado ainda.</p>
       </div>
     {% endif %}
   {% endcall %}

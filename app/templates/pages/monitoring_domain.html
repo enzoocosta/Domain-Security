@@ -3,7 +3,7 @@
 {% from "partials/metric_card.html" import render_metric_card %}
 
 {% block content %}
-  {% call render_section_card(detail.domain.normalized_domain, "Monitoramento do dominio", detail.domain.input_label or "Visao detalhada do dominio monitorado.") %}
+  {% call render_section_card(detail.domain.normalized_domain, "Monitoramento do domínio", detail.domain.input_label or "Visão detalhada do domínio monitorado.") %}
     {% if detail.scheduler_warning %}
       <div class="message message--warning">{{ detail.scheduler_warning }}</div>
     {% endif %}
@@ -29,18 +29,18 @@
       {{ render_metric_card("Plano", detail.domain.plan | humanize_token, "neutral") }}
       {{ render_metric_card("Intervalo", detail.domain.check_interval_minutes | format_interval_minutes, "neutral") }}
       {{ render_metric_card("Status do monitoramento", detail.domain.monitoring_status | humanize_token, "neutral") }}
-      {{ render_metric_card("Ultimo estado valido", detail.domain.last_run_at | format_datetime if detail.domain.last_run_at else 'ainda nao executado', "neutral") }}
-      {{ render_metric_card("Ultima tentativa", detail.domain.last_attempt_at | format_datetime if detail.domain.last_attempt_at else 'ainda nao executado', "neutral") }}
-      {{ render_metric_card("Proxima checagem", detail.domain.next_check_at | format_datetime, "info") }}
-      {{ render_metric_card("Status da ultima tentativa", detail.domain.latest_run_status or detail.domain.last_status or 'agendado', "neutral") }}
-      {{ render_metric_card("Ultimo score", detail.domain.latest_score if detail.domain.latest_score is not none else '-', "info") }}
-      {{ render_metric_card("Ultima severity", detail.domain.latest_severity | humanize_token if detail.domain.latest_severity else '-', "neutral") }}
+      {{ render_metric_card("Último estado válido", detail.domain.last_run_at | format_datetime if detail.domain.last_run_at else 'ainda não executado', "neutral") }}
+      {{ render_metric_card("Última tentativa", detail.domain.last_attempt_at | format_datetime if detail.domain.last_attempt_at else 'ainda não executado', "neutral") }}
+      {{ render_metric_card("Próxima checagem", detail.domain.next_check_at | format_datetime, "info") }}
+      {{ render_metric_card("Status da última tentativa", detail.domain.latest_run_status or detail.domain.last_status or 'agendado', "neutral") }}
+      {{ render_metric_card("Último score", detail.domain.latest_score if detail.domain.latest_score is not none else '-', "info") }}
+      {{ render_metric_card("Última severity", detail.domain.latest_severity | humanize_token if detail.domain.latest_severity else '-', "neutral") }}
     </div>
   {% endcall %}
 
-  {% call render_section_card("Score recente", "Mini-grafico", "Ultimos scores validos para leitura rapida de tendencia.") %}
+  {% call render_section_card("Score recente", "Mini-gráfico", "Últimos scores válidos para leitura rápida de tendência.") %}
     {% if detail.score_history %}
-      <div class="score-sparkline" aria-label="Historico recente de score">
+      <div class="score-sparkline" aria-label="Histórico recente de score">
         {% for point in detail.score_history %}
           <div class="score-sparkline__bar-wrapper" title="{{ point.recorded_at | format_datetime }} - {{ point.score }}">
             <div class="score-sparkline__bar" style="height: {{ [point.score, 8] | max }}%;"></div>
@@ -50,13 +50,13 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <h3>Sem score historico ainda</h3>
-        <p>O mini-grafico aparece assim que houver execucoes validas suficientes.</p>
+        <h3>Sem score histórico ainda</h3>
+        <p>O mini-gráfico aparece assim que houver execuções válidas suficientes.</p>
       </div>
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Alertas abertos", "Prioridade", "Lista curta dos alertas ativos vinculados a este dominio.") %}
+  {% call render_section_card("Alertas abertos", "Prioridade", "Lista curta dos alertas ativos vinculados a este domínio.") %}
     {% if detail.open_alerts %}
       <div class="recommendation-list">
         {% for alert in detail.open_alerts %}
@@ -76,20 +76,20 @@
     {% else %}
       <div class="empty-state">
         <h3>Nenhum alerta aberto</h3>
-        <p>Nenhum alerta aberto para este dominio.</p>
+        <p>Nenhum alerta aberto para este domínio.</p>
       </div>
     {% endif %}
   {% endcall %}
 
-  {% call render_section_card("Historico resumido de execucoes", "Timeline", "Ultimas execucoes com status, score e janela temporal.") %}
+  {% call render_section_card("Histórico resumido de execuções", "Timeline", "Últimas execuções com status, score e janela temporal.") %}
     {% if detail.recent_runs %}
       <div class="timeline-list">
         {% for run in detail.recent_runs %}
           <article class="timeline-card">
             <div class="timeline-card__header">
               <div>
-                <h3>Execucao #{{ run.id }}</h3>
-                <p>{{ run.started_at | format_datetime }}{% if run.completed_at %} ate {{ run.completed_at | format_datetime }}{% endif %}</p>
+                <h3>Execução #{{ run.id }}</h3>
+                <p>{{ run.started_at | format_datetime }}{% if run.completed_at %} até {{ run.completed_at | format_datetime }}{% endif %}</p>
               </div>
               <span class="badge badge--{{ run.severity or 'neutral' }}">{{ run.severity | humanize_token if run.severity else run.run_status | humanize_token }}</span>
             </div>
@@ -107,8 +107,8 @@
       </div>
     {% else %}
       <div class="empty-state">
-        <h3>Nenhuma execucao salva</h3>
-        <p>Nenhuma execucao foi salva ainda para este dominio.</p>
+        <h3>Nenhuma execução salva</h3>
+        <p>Nenhuma execução foi salva ainda para este domínio.</p>
       </div>
     {% endif %}
   {% endcall %}
