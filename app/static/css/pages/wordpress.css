@@ -10,8 +10,8 @@
 .wordpress-hero {
   background:
     radial-gradient(circle at top right, rgba(0, 212, 255, 0.12), transparent 30%),
-    linear-gradient(160deg, rgba(8, 17, 31, 0.98) 0%, rgba(13, 18, 32, 0.96) 46%, rgba(16, 40, 62, 0.92) 100%);
-  border-color: rgba(0, 212, 255, 0.24);
+    var(--hero-panel);
+  border-color: var(--border-accent);
 }
 
 .wordpress-hero__body {
@@ -99,7 +99,7 @@
 .profile-card[aria-pressed="true"] {
   border-color: rgba(0, 212, 255, 0.38);
   background:
-    linear-gradient(180deg, rgba(0, 212, 255, 0.14), rgba(10, 14, 26, 0.96)),
+    linear-gradient(180deg, rgba(0, 212, 255, 0.14), transparent 60%),
     var(--surface-card-muted);
   box-shadow: var(--shadow-glow);
 }
@@ -320,7 +320,7 @@
   padding: 1.1rem;
   background:
     radial-gradient(circle at top, rgba(0, 212, 255, 0.14), transparent 44%),
-    linear-gradient(180deg, rgba(6, 18, 31, 0.96), rgba(6, 12, 22, 0.98));
+    var(--highlight-panel);
 }
 
 .wp-tech-loader__scene::after {
@@ -478,7 +478,7 @@
   min-height: clamp(18rem, 34vw, 24rem);
   background:
     radial-gradient(circle at top right, rgba(0, 212, 255, 0.08), transparent 38%),
-    linear-gradient(180deg, rgba(12, 19, 34, 0.98), rgba(8, 13, 24, 0.98));
+    var(--highlight-panel-muted);
 }
 
 .wp-tech-loader__status-live,
@@ -549,7 +549,7 @@
   padding: 0.85rem 0.95rem;
   border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: var(--radius-lg);
-  background: rgba(15, 23, 42, 0.64);
+  background: var(--surface-card-muted);
   transition:
     border-color var(--transition-fast),
     transform var(--transition-fast),
@@ -656,7 +656,7 @@
   border: 1px solid rgba(16, 185, 129, 0.16);
   border-radius: var(--radius-pill);
   background: rgba(16, 185, 129, 0.08);
-  color: #dcfce7;
+  color: var(--success);
   font-size: 0.86rem;
   font-weight: 700;
 }
@@ -693,7 +693,7 @@
 .wp-tech-loader[data-state="complete"] .wp-tech-loader__scene {
   background:
     radial-gradient(circle at top, rgba(16, 185, 129, 0.16), transparent 48%),
-    linear-gradient(180deg, rgba(7, 24, 21, 0.96), rgba(7, 17, 23, 0.98));
+    var(--highlight-panel);
 }
 
 .wp-tech-loader[data-state="complete"] .wp-tech-loader__scene::after {
@@ -821,7 +821,7 @@
   border: 1px solid var(--border);
   border-left-width: 0.35rem;
   border-radius: var(--radius-lg);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(8, 13, 24, 0.98));
+  background: var(--surface-card);
 }
 
 .wp-tech-vuln-card--critical {
@@ -1306,7 +1306,7 @@
   padding: 1.2rem;
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(10, 14, 26, 0.98));
+  background: var(--highlight-panel);
 }
 
 .wp-summary--good {
@@ -1439,8 +1439,8 @@
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: var(--radius-xl);
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 21, 0.98)),
-    var(--surface-card);
+    linear-gradient(135deg, rgba(59, 130, 246, 0.08), transparent 42%),
+    var(--highlight-panel);
 }
 
 .wp-tech-report-header__identity {
@@ -1486,7 +1486,7 @@
   padding: 1.25rem;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: var(--radius-xl);
-  background: rgba(9, 14, 26, 0.72);
+  background: var(--surface-card-muted);
 }
 
 .wp-tech-report-section__heading {
@@ -1505,8 +1505,8 @@
   align-items: flex-start;
   background:
     radial-gradient(circle at top right, rgba(0, 212, 255, 0.12), transparent 30%),
-    linear-gradient(160deg, rgba(8, 17, 31, 0.98) 0%, rgba(13, 18, 32, 0.96) 46%, rgba(16, 40, 62, 0.92) 100%);
-  border-color: rgba(0, 212, 255, 0.24);
+    var(--hero-panel);
+  border-color: var(--border-accent);
 }
 
 .wp-tech-report-hero__copy {
@@ -1809,7 +1809,7 @@
   border: 1px solid var(--border);
   border-left-width: 0.35rem;
   border-radius: var(--radius-lg);
-  background: rgba(15, 23, 42, 0.7);
+  background: var(--surface-card-muted);
 }
 
 .wp-tech-report-vuln-detail--critical {
@@ -1951,7 +1951,9 @@
 
 .wp-tech-report-safe-card {
   border-color: rgba(16, 185, 129, 0.2);
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.82));
+  background:
+    linear-gradient(180deg, rgba(16, 185, 129, 0.08), transparent 58%),
+    var(--surface-card-muted);
 }
 
 .wp-tech-report-safe-card__header,

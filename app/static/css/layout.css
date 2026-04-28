@@ -246,7 +246,7 @@
 .page-discovery .page-shell > .section-card:first-child,
 .page-history .page-shell > .section-card:first-child {
   border-color: var(--border-accent);
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(10, 14, 26, 0.99));
+  background: var(--highlight-panel);
 }
 
 @keyframes fade-up {

@@ -50,6 +50,13 @@
   --hero-panel: linear-gradient(160deg, rgba(8, 17, 31, 0.96) 0%, rgba(13, 18, 32, 0.94) 48%, rgba(18, 43, 82, 0.88) 100%);
   --hero-score-bg: linear-gradient(180deg, rgba(8, 17, 31, 0.96), rgba(13, 18, 32, 0.96));
   --card-gradient: linear-gradient(180deg, rgba(17, 24, 39, 0.96) 0%, rgba(12, 18, 30, 0.98) 100%);
+  --highlight-panel: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(10, 14, 26, 0.99));
+  --highlight-panel-muted: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(10, 14, 26, 0.98));
+  --premium-panel: linear-gradient(145deg, rgba(8, 17, 31, 0.98), rgba(14, 30, 53, 0.94));
+  --premium-subpanel: rgba(10, 14, 26, 0.58);
+  --hero-chip-border: rgba(255, 255, 255, 0.14);
+  --hero-chip-bg: rgba(255, 255, 255, 0.06);
+  --hero-chip-text: rgba(249, 250, 251, 0.86);
   --banner-danger: linear-gradient(90deg, rgba(127, 29, 29, 0.96), rgba(239, 68, 68, 0.88));
   --code-bg: rgba(8, 17, 31, 0.92);
   --grid-line: rgba(148, 163, 184, 0.06);
@@ -134,6 +141,13 @@
   --hero-panel: linear-gradient(155deg, rgba(255, 255, 255, 0.98) 0%, rgba(239, 246, 255, 0.98) 58%, rgba(219, 234, 254, 0.98) 100%);
   --hero-score-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 247, 255, 0.98));
   --card-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(244, 248, 255, 0.98) 100%);
+  --highlight-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 246, 255, 0.98));
+  --highlight-panel-muted: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(236, 244, 255, 0.98));
+  --premium-panel: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(227, 238, 255, 0.96));
+  --premium-subpanel: rgba(255, 255, 255, 0.78);
+  --hero-chip-border: rgba(37, 99, 235, 0.18);
+  --hero-chip-bg: rgba(37, 99, 235, 0.08);
+  --hero-chip-text: #000000;
   --banner-danger: linear-gradient(90deg, rgba(185, 28, 28, 0.96), rgba(239, 68, 68, 0.88));
   --code-bg: rgba(236, 244, 255, 0.92);
   --grid-line: rgba(37, 99, 235, 0.05);

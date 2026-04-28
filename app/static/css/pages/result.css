@@ -54,12 +54,12 @@
 }
 
 .section-card--hero {
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96), rgba(10, 14, 26, 0.99));
+  background: var(--highlight-panel);
 }
 
 .section-card--score,
 .section-card--technical {
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(10, 14, 26, 0.98));
+  background: var(--highlight-panel-muted);
 }
 
 .summary-hero {
@@ -180,7 +180,9 @@
 
 .page-result .metric-card--status-alert {
   border-color: rgba(239, 68, 68, 0.24);
-  background: linear-gradient(180deg, rgba(239, 68, 68, 0.12), rgba(10, 14, 26, 0.94));
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, 0.12), transparent 58%),
+    var(--surface-card);
 }
 
 .page-result .technical-grid {
@@ -216,7 +218,7 @@
 }
 
 .page-result .recommendation-item {
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.92), rgba(9, 14, 26, 0.96));
+  background: var(--surface-card-muted);
 }
 
 .page-result .empty-state {

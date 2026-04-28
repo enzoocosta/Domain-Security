@@ -24,7 +24,7 @@
 .home-hero__copy {
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(59, 130, 246, 0.28);
+  border: 1px solid rgba(149, 190, 255, 0.918);
   background: var(--hero-panel);
   box-shadow: var(--shadow-md);
 }
@@ -60,10 +60,8 @@
   z-index: 1;
 }
 
-.home-hero__copy h1,
-.home-hero__copy p,
 .home-hero__copy .eyebrow {
-  color: #f9fafb;
+  color: var(--primary);
 }
 
 .home-hero__copy h1 {
@@ -72,7 +70,7 @@
 
 .home-hero__lead {
   max-width: 40rem;
-  color: rgba(249, 250, 251, 0.82);
+  color: var(--text-soft);
   font-size: clamp(1rem, 0.9rem + 0.45vw, 1.14rem);
 }
 
