@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -13,8 +15,13 @@ from app.core.limiter import limiter
 from app.core.scheduler import scheduler as app_scheduler
 from app.core.scheduler import start_scheduler, stop_scheduler
 from app.db import init_db
+from app.presenters import configure_template_filters
 from app.services.monitoring_plus_scheduler_service import (
     MonitoringPlusSchedulerService,
+)
+
+templates = configure_template_filters(
+    Jinja2Templates(directory=str(settings.templates_dir))
 )
 
 
@@ -54,6 +61,29 @@ def create_app() -> FastAPI:
     app.include_router(web_router)
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     app.include_router(external_api_router)
+
+    @app.exception_handler(404)
+    async def not_found_handler(request: Request, exc: Exception) -> HTMLResponse:
+        if request.url.path.startswith("/api/") or request.url.path.startswith(
+            "/internal/"
+        ):
+            return JSONResponse(
+                content={"detail": getattr(exc, "detail", "Not Found")},
+                status_code=404,
+            )
+
+        return templates.TemplateResponse(
+            request=request,
+            name="404.html",
+            context={
+                "request": request,
+                "page_title": "Página não encontrada — Domain Security Checker",
+                "title": "Página não encontrada — Domain Security Checker",
+                "page_name": "not-found",
+            },
+            status_code=404,
+        )
+
     return app
 
 

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ page_title or "Domain Security Checker" }}</title>
+    <title>{% block title %}{{ page_title or "Domain Security Checker" }}{% endblock %}</title>
     <meta name="description" content="{{ meta_description | default('Domain Security Checker — Diagnóstico gratuito de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Análise pública sem cadastro.') }}">
     <meta name="robots" content="index, follow">
     <meta property="og:title" content="{{ title | default(page_title | default('Domain Security Checker')) }}">

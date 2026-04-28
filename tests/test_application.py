@@ -327,6 +327,14 @@ def test_auth_pages_include_specific_meta_description(client):
     )
 
 
+def test_unknown_route_renders_custom_404_page(client):
+    response = client.get("/rota-inexistente")
+
+    assert response.status_code == 404
+    assert "A página que você procura não existe ou foi movida." in response.text
+    assert "Voltar para a análise" in response.text
+
+
 def test_base_template_uses_versioned_static_assets(client):
     response = client.get("/")
 
