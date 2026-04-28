@@ -10,7 +10,7 @@
         <h1>Diagnóstico para segurança de Domínio e autenticação de e-mail</h1>
         <p class="home-hero__lead">
           Análise pública de DNS, MX, SPF, DKIM, DMARC, TLS/SSL e dados de registro
-          com visual claro, leitura rápida e limites técnicos explícitos.
+          para identificar falhas de configuração e riscos de entrega de e-mail.
         </p>
         <div class="hero-chip-row">
           <span class="hero-chip">DNS & MX</span>
@@ -24,8 +24,8 @@
         <p class="surface-label">Análise pública</p>
         <h2>Verifique um Domínio ou e-mail em segundos</h2>
         <p class="text-muted">
-          Um único campo. Sem fluxo confuso. Resultado orientado a achados, recomendações
-          e leitura executiva.
+          Informe um domínio ou e-mail corporativo para validar autenticação,
+          certificado, DNS e dados de registro em poucos segundos.
         </p>
 
         {% if error %}
@@ -51,13 +51,13 @@
     </div>
 
     <div class="hero-proof-grid">
-      {{ render_metric_card("Análise", "Rápida", "info", "Leitura objetiva e sem ruído") }}
-      {{ render_metric_card("Saída", "Priorizada", "success", "Findings e recomendações em ordem útil") }}
-      {{ render_metric_card("Tom", "Confiável", "neutral", "Sem exagero visual ou falsa certeza") }}
+      {{ render_metric_card("Cobertura", "DNS e e-mail", "info", "DNS, MX, SPF, DKIM e DMARC em uma única checagem") }}
+      {{ render_metric_card("Segurança", "TLS e domínio", "success", "Certificado, versão TLS e dados de registro no mesmo relatório") }}
+      {{ render_metric_card("Resultado", "Acionável", "neutral", "Achados priorizados com contexto para correção") }}
     </div>
   </section>
 
-  {% call render_section_card("O que é analisado", "Cobertura técnica", "A homepage comunica amplitude técnica sem parecer um dashboard improvisado.") %}
+  {% call render_section_card("O que é analisado", "Cobertura técnica", "Cobertura completa dos principais vetores de risco de domínio e e-mail.") %}
     <div class="feature-grid">
       <article class="feature-card">
         <h3>DNS, MX e roteamento</h3>
@@ -78,19 +78,19 @@
     </div>
   {% endcall %}
 
-  {% call render_section_card("Como o resultado é apresentado", "Hierarquia", "Resumo executivo primeiro, detalhes técnicos depois, sempre com foco em legibilidade.") %}
+  {% call render_section_card("Como interpretar o resultado", "Relatório", "Resumo executivo com recomendações priorizadas para agilizar a correção.") %}
     <div class="trust-grid">
       <article class="trust-card">
         <h3>Resumo executivo</h3>
-        <p>Score, severidade, mensagem curta e próximos passos visíveis sem rolagem excessiva.</p>
+        <p>Score, severidade e próximos passos para entender rapidamente o cenário do domínio.</p>
       </article>
       <article class="trust-card">
         <h3>Achados e recomendações</h3>
-        <p>O que importa aparece primeiro, com contexto suficiente para tomada de decisão.</p>
+        <p>Os problemas mais relevantes aparecem primeiro, com contexto suficiente para orientar a correção.</p>
       </article>
       <article class="trust-card">
-        <h3>Honestidade técnica</h3>
-        <p>DKIM, TLS e WHOIS mantêm limites explícitos para evitar afirmações mais fortes do que a evidência suporta.</p>
+        <h3>Limites de evidência</h3>
+        <p>O relatório separa dados confirmados de sinais inconclusivos para evitar conclusões indevidas.</p>
       </article>
     </div>
   {% endcall %}
