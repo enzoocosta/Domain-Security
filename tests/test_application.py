@@ -301,6 +301,32 @@ def test_home_page_renders(client):
     assert "Domain Security Checker" in response.text
 
 
+def test_home_page_includes_seo_meta_tags(client):
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert (
+        'content="Análise gratuita de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Sem cadastro, resultado em segundos."'
+        in response.text
+    )
+    assert 'meta property="og:title" content="Domain Security Checker"' in response.text
+    assert 'meta property="og:url" content="https://domainsecurity.com.br/"' in response.text
+
+
+def test_auth_pages_include_specific_meta_description(client):
+    login_response = client.get("/auth/login")
+    register_response = client.get("/auth/register")
+
+    assert (
+        'content="Acesse o painel de monitoramento contínuo do Domain Security Checker."'
+        in login_response.text
+    )
+    assert (
+        'content="Crie sua conta para monitorar domínios e receber alertas de risco."'
+        in register_response.text
+    )
+
+
 def test_base_template_uses_versioned_static_assets(client):
     response = client.get("/")
 

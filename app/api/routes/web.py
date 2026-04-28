@@ -31,7 +31,9 @@ def home(request: Request) -> HTMLResponse:
     context = {
         "request": request,
         "page_title": settings.app_name,
+        "title": settings.app_name,
         "page_name": "home",
+        "meta_description": "Análise gratuita de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Sem cadastro, resultado em segundos.",
         "error": None,
         "submitted_target": "",
     }
@@ -47,7 +49,9 @@ def wordpress_page(request: Request) -> HTMLResponse:
     context = {
         "request": request,
         "page_title": "WordPress Security",
+        "title": "WordPress Security",
         "page_name": "wordpress",
+        "meta_description": "Verifique a segurança do seu site WordPress — plugins, versão exposta, vulnerabilidades e configurações.",
     }
     return templates.TemplateResponse(
         request=request,
@@ -82,7 +86,9 @@ def analyze_from_form(
         context = {
             "request": request,
             "page_title": settings.app_name,
+            "title": settings.app_name,
             "page_name": "home",
+            "meta_description": "Análise gratuita de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Sem cadastro, resultado em segundos.",
             "error": str(exc),
             "submitted_target": target,
         }
@@ -129,7 +135,9 @@ def history_page(request: Request, domain: str) -> HTMLResponse:
         context = {
             "request": request,
             "page_title": settings.app_name,
+            "title": settings.app_name,
             "page_name": "home",
+            "meta_description": "Análise gratuita de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Sem cadastro, resultado em segundos.",
             "error": str(exc),
             "submitted_target": domain,
         }

@@ -28,7 +28,9 @@ def register_page(request: Request) -> HTMLResponse:
         context={
             "request": request,
             "page_title": "Criar conta",
+            "title": "Criar conta",
             "page_name": "auth",
+            "meta_description": "Crie sua conta para monitorar domínios e receber alertas de risco.",
             "error": None,
             "next_path": request.query_params.get("next", "/monitoring"),
         },
@@ -56,7 +58,9 @@ def register_user(
             context={
                 "request": request,
                 "page_title": "Criar conta",
+                "title": "Criar conta",
                 "page_name": "auth",
+                "meta_description": "Crie sua conta para monitorar domínios e receber alertas de risco.",
                 "error": str(exc),
                 "next_path": next_path or "/monitoring",
             },
@@ -76,7 +80,9 @@ def login_page(request: Request) -> HTMLResponse:
         context={
             "request": request,
             "page_title": "Entrar",
+            "title": "Entrar",
             "page_name": "auth",
+            "meta_description": "Acesse o painel de monitoramento contínuo do Domain Security Checker.",
             "error": None,
             "next_path": request.query_params.get("next", "/monitoring"),
         },
@@ -104,7 +110,9 @@ def login_user(
             context={
                 "request": request,
                 "page_title": "Entrar",
+                "title": "Entrar",
                 "page_name": "auth",
+                "meta_description": "Acesse o painel de monitoramento contínuo do Domain Security Checker.",
                 "error": str(exc),
                 "next_path": next_path or "/monitoring",
             },

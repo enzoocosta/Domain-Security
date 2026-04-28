@@ -4,10 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ page_title or "Domain Security Checker" }}</title>
-    <meta
-      name="description"
-      content="Diagnóstico para segurança de domínio, autenticação de e-mail, TLS e dados de registro com honestidade técnica."
-    />
+    <meta name="description" content="{{ meta_description | default('Domain Security Checker — Diagnóstico gratuito de DNS, SPF, DKIM, DMARC, TLS e registro de domínio. Análise pública sem cadastro.') }}">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="{{ title | default(page_title | default('Domain Security Checker')) }}">
+    <meta property="og:description" content="{{ meta_description | default('Diagnóstico gratuito de segurança de domínio e autenticação de e-mail.') }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://domainsecurity.com.br{{ request.url.path }}">
     <script>
       (function () {
         var storageKey = "dsc-theme";
