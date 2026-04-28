@@ -44,6 +44,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
+    DEBUG: bool
     app_name: str
     app_version: str
     api_v1_prefix: str
@@ -109,6 +110,7 @@ class Settings:
 
 
 settings = Settings(
+    DEBUG=_env_bool("DEBUG", False),
     app_name=os.getenv("DSC_APP_NAME", "Domain Security Checker"),
     app_version="0.1.0",
     api_v1_prefix="/api/v1",
