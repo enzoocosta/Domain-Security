@@ -1,17 +1,14 @@
-import importlib.metadata
-
 from fastapi import APIRouter, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.db.session import get_db
 
 router = APIRouter(tags=["health"])
 
 
-@router.get("/health", summary="Application health check")
+@router.get("/health", include_in_schema=False)
 def health_check(db: Session = Depends(get_db)):
     db_status = "ok"
     try:
@@ -19,15 +16,13 @@ def health_check(db: Session = Depends(get_db)):
     except Exception:
         db_status = "error"
 
-    try:
-        version = importlib.metadata.version("domain-security-checker")
-    except importlib.metadata.PackageNotFoundError:
-        version = settings.app_version
-
     if db_status == "error":
-        return JSONResponse(
-            content={"status": "degraded", "db": "error", "version": version},
+        import json
+
+        return Response(
+            content=json.dumps({"status": "degraded", "db": "error"}),
             status_code=503,
+            media_type="application/json",
         )
 
-    return {"status": "ok", "version": version, "db": db_status}
+    return {"status": "ok", "db": "ok"}
